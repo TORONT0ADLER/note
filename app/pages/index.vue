@@ -90,49 +90,159 @@
         </div>
       </div>
 
-      <div class="lg:w-[22rem] lg:shrink-0">
-        <UCard>
-          <template #header>
-            <div class="space-y-2">
-              <UInput
-                v-model="searchQuery"
-                icon="i-lucide-search"
-                placeholder="Поиск заметок"
-              />
+      <template v-if="leftPanel === 'notes'">
+        <div class="lg:w-[22rem] lg:shrink-0">
+          <UCard>
+            <template #header>
+              <div class="space-y-2">
+                <UInput
+                  v-model="searchQuery"
+                  icon="i-lucide-search"
+                  placeholder="Поиск заметок"
+                />
 
-              <div class="flex gap-2">
-                <UButton
-                  size="xs"
-                  icon="i-lucide-folder-plus"
-                  color="neutral"
-                  variant="soft"
-                  @click="createFolder"
-                >
-                  Папка
-                </UButton>
-                <UButton
-                  size="xs"
-                  icon="i-lucide-file-plus"
-                  color="primary"
-                  variant="soft"
-                  @click="createNote()"
-                >
-                  Заметка
-                </UButton>
+                <div class="flex gap-2">
+                  <UButton
+                    size="xs"
+                    icon="i-lucide-folder-plus"
+                    color="neutral"
+                    variant="soft"
+                    @click="createFolder"
+                  >
+                    Папка
+                  </UButton>
+                  <UButton
+                    size="xs"
+                    icon="i-lucide-file-plus"
+                    color="primary"
+                    variant="soft"
+                    @click="createNote()"
+                  >
+                    Заметка
+                  </UButton>
+                </div>
               </div>
-            </div>
-          </template>
+            </template>
 
-          <div class="max-h-[65vh] space-y-2 overflow-auto">
-            <div v-if="rootFilteredNotes.length" class="space-y-2">
-              <p
-                class="px-1 text-xs font-medium uppercase tracking-wide text-muted"
-              >
-                Без папки
-              </p>
+            <div class="max-h-[65vh] space-y-2 overflow-auto">
+              <div v-if="rootFilteredNotes.length" class="space-y-2">
+                <p
+                  class="px-1 text-xs font-medium uppercase tracking-wide text-muted"
+                >
+                  Без папки
+                </p>
+
+                <button
+                  v-for="note in rootFilteredNotes"
+                  :key="note.id"
+                  class="w-full rounded-md border p-3 text-left transition"
+                  :class="
+                    activeNoteId === note.id
+                      ? 'border-primary bg-primary/10'
+                      : 'border-default hover:bg-muted/40'
+                  "
+                  @click="activeNoteId = note.id"
+                >
+                  <p class="truncate text-sm font-medium text-highlighted">
+                    {{ noteTitle(note) }}
+                  </p>
+                  <p class="truncate text-xs text-muted">
+                    {{ notePreview(note) }}
+                  </p>
+                  <p class="mt-1 text-xs text-muted">
+                    {{ formatDate(note.updatedAt) }}
+                  </p>
+                </button>
+              </div>
+
+              <div v-for="folder in folders" :key="folder.id" class="space-y-2">
+                <div class="group flex items-center justify-between px-1">
+                  <button
+                    class="flex min-w-0 items-center gap-1 text-left"
+                    @click="toggleFolder(folder.id)"
+                  >
+                    <UIcon
+                      class="h-4 w-4 text-muted transition-transform"
+                      :class="{
+                        'rotate-[-90deg]': isFolderCollapsed(folder.id),
+                      }"
+                      name="i-lucide-chevron-down"
+                    />
+                    <p
+                      class="truncate text-xs font-medium uppercase tracking-wide text-muted"
+                    >
+                      {{ folder.name }}
+                    </p>
+                  </button>
+
+                  <div
+                    class="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                  >
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-pencil"
+                      aria-label="Переименовать папку"
+                      @click="renameFolder(folder.id)"
+                    />
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      :icon="
+                        isFolderCollapsed(folder.id)
+                          ? 'i-lucide-folder-open'
+                          : 'i-lucide-folder'
+                      "
+                      aria-label="Свернуть или развернуть папку"
+                      @click="toggleFolder(folder.id)"
+                    />
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-file-plus"
+                      aria-label="Создать заметку в папке"
+                      @click="createNote(folder.id)"
+                    />
+                    <UButton
+                      size="xs"
+                      color="error"
+                      variant="ghost"
+                      icon="i-lucide-trash-2"
+                      aria-label="Удалить папку"
+                      @click="deleteFolder(folder.id)"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  v-show="!isFolderCollapsed(folder.id)"
+                  v-for="note in notesInFolder(folder.id)"
+                  :key="note.id"
+                  class="w-full rounded-md border p-3 text-left transition"
+                  :class="
+                    activeNoteId === note.id
+                      ? 'border-primary bg-primary/10'
+                      : 'border-default hover:bg-muted/40'
+                  "
+                  @click="activeNoteId = note.id"
+                >
+                  <p class="truncate text-sm font-medium text-highlighted">
+                    {{ noteTitle(note) }}
+                  </p>
+                  <p class="truncate text-xs text-muted">
+                    {{ notePreview(note) }}
+                  </p>
+                  <p class="mt-1 text-xs text-muted">
+                    {{ formatDate(note.updatedAt) }}
+                  </p>
+                </button>
+              </div>
 
               <button
-                v-for="note in rootFilteredNotes"
+                v-for="note in orphanFilteredNotes"
                 :key="note.id"
                 class="w-full rounded-md border p-3 text-left transition"
                 :class="
@@ -152,299 +262,331 @@
                   {{ formatDate(note.updatedAt) }}
                 </p>
               </button>
+
+              <UAlert
+                v-if="!filteredNotes.length"
+                color="neutral"
+                variant="subtle"
+                title="Ничего не найдено"
+                description="Измените поиск или создайте новую заметку."
+              />
             </div>
+          </UCard>
+        </div>
 
-            <div v-for="folder in folders" :key="folder.id" class="space-y-2">
-              <div class="group flex items-center justify-between px-1">
-                <button
-                  class="flex min-w-0 items-center gap-1 text-left"
-                  @click="toggleFolder(folder.id)"
-                >
-                  <UIcon
-                    class="h-4 w-4 text-muted transition-transform"
-                    :class="{ 'rotate-[-90deg]': isFolderCollapsed(folder.id) }"
-                    name="i-lucide-chevron-down"
-                  />
-                  <p
-                    class="truncate text-xs font-medium uppercase tracking-wide text-muted"
-                  >
-                    {{ folder.name }}
-                  </p>
-                </button>
+        <div class="lg:min-w-0 lg:flex-1">
+          <UCard>
+            <template #header>
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <h2 class="text-lg font-semibold">Редактор</h2>
 
-                <div
-                  class="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
-                >
+                <div class="flex flex-wrap items-center gap-1">
                   <UButton
                     size="xs"
                     color="neutral"
                     variant="ghost"
-                    icon="i-lucide-pencil"
-                    aria-label="Переименовать папку"
-                    @click="renameFolder(folder.id)"
+                    icon="i-lucide-paperclip"
+                    aria-label="Прикрепить файл"
+                    @click="triggerFilePicker"
                   />
                   <UButton
                     size="xs"
                     color="neutral"
                     variant="ghost"
-                    :icon="
-                      isFolderCollapsed(folder.id)
-                        ? 'i-lucide-folder-open'
-                        : 'i-lucide-folder'
+                    icon="i-lucide-bold"
+                    :class="{ 'bg-muted': editor?.isActive('bold') }"
+                    @mousedown.prevent="
+                      editor?.chain().focus().toggleBold().run()
                     "
-                    aria-label="Свернуть или развернуть папку"
-                    @click="toggleFolder(folder.id)"
                   />
                   <UButton
                     size="xs"
                     color="neutral"
                     variant="ghost"
-                    icon="i-lucide-file-plus"
-                    aria-label="Создать заметку в папке"
-                    @click="createNote(folder.id)"
+                    icon="i-lucide-italic"
+                    :class="{ 'bg-muted': editor?.isActive('italic') }"
+                    @mousedown.prevent="
+                      editor?.chain().focus().toggleItalic().run()
+                    "
+                  />
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    icon="i-lucide-underline"
+                    :class="{ 'bg-muted': editor?.isActive('underline') }"
+                    @mousedown.prevent="
+                      editor?.chain().focus().toggleUnderline().run()
+                    "
+                  />
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    icon="i-lucide-code"
+                    :class="{ 'bg-muted': editor?.isActive('code') }"
+                    @mousedown.prevent="
+                      editor?.chain().focus().toggleCode().run()
+                    "
+                  />
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    icon="i-lucide-file-code-2"
+                    :class="{ 'bg-muted': editor?.isActive('codeBlock') }"
+                    @mousedown.prevent="
+                      editor?.chain().focus().toggleCodeBlock().run()
+                    "
+                  />
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    icon="i-lucide-list"
+                    :class="{ 'bg-muted': editor?.isActive('bulletList') }"
+                    @mousedown.prevent="
+                      editor?.chain().focus().toggleBulletList().run()
+                    "
+                  />
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    icon="i-lucide-list-ordered"
+                    :class="{ 'bg-muted': editor?.isActive('orderedList') }"
+                    @mousedown.prevent="
+                      editor?.chain().focus().toggleOrderedList().run()
+                    "
+                  />
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    icon="i-lucide-quote"
+                    :class="{ 'bg-muted': editor?.isActive('blockquote') }"
+                    @mousedown.prevent="
+                      editor?.chain().focus().toggleBlockquote().run()
+                    "
+                  />
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    icon="i-lucide-heading-2"
+                    :class="{
+                      'bg-muted': editor?.isActive('heading', { level: 2 }),
+                    }"
+                    @mousedown.prevent="
+                      editor?.chain().focus().toggleHeading({ level: 2 }).run()
+                    "
+                  />
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    icon="i-lucide-link"
+                    @mousedown.prevent="setLink"
+                  />
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    icon="i-lucide-table"
+                    @mousedown.prevent="insertTable"
+                  />
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    icon="i-lucide-columns-2"
+                    @mousedown.prevent="addColumnAfter"
+                  />
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    icon="i-lucide-rows-2"
+                    @mousedown.prevent="addRowAfter"
+                  />
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    icon="i-lucide-eraser"
+                    @mousedown.prevent="clearFormatting"
                   />
                   <UButton
                     size="xs"
                     color="error"
-                    variant="ghost"
+                    variant="soft"
                     icon="i-lucide-trash-2"
-                    aria-label="Удалить папку"
-                    @click="deleteFolder(folder.id)"
+                    aria-label="Удалить заметку"
+                    :disabled="!activeNote"
+                    @click="isDeleteModalOpen = true"
+                  />
+
+                  <input
+                    ref="fileInputRef"
+                    type="file"
+                    class="hidden"
+                    multiple
+                    accept="image/*,.pdf,*/*"
+                    @change="onFileInputChange"
                   />
                 </div>
               </div>
+            </template>
 
-              <button
-                v-show="!isFolderCollapsed(folder.id)"
-                v-for="note in notesInFolder(folder.id)"
-                :key="note.id"
-                class="w-full rounded-md border p-3 text-left transition"
-                :class="
-                  activeNoteId === note.id
-                    ? 'border-primary bg-primary/10'
-                    : 'border-default hover:bg-muted/40'
-                "
-                @click="activeNoteId = note.id"
-              >
-                <p class="truncate text-sm font-medium text-highlighted">
-                  {{ noteTitle(note) }}
-                </p>
-                <p class="truncate text-xs text-muted">
-                  {{ notePreview(note) }}
-                </p>
-                <p class="mt-1 text-xs text-muted">
-                  {{ formatDate(note.updatedAt) }}
-                </p>
-              </button>
+            <div v-if="activeNote" class="space-y-3">
+              <EditorContent :editor="editor" class="prosemirror-editor" />
             </div>
 
-            <button
-              v-for="note in orphanFilteredNotes"
-              :key="note.id"
-              class="w-full rounded-md border p-3 text-left transition"
-              :class="
-                activeNoteId === note.id
-                  ? 'border-primary bg-primary/10'
-                  : 'border-default hover:bg-muted/40'
-              "
-              @click="activeNoteId = note.id"
-            >
-              <p class="truncate text-sm font-medium text-highlighted">
-                {{ noteTitle(note) }}
-              </p>
-              <p class="truncate text-xs text-muted">
-                {{ notePreview(note) }}
-              </p>
-              <p class="mt-1 text-xs text-muted">
-                {{ formatDate(note.updatedAt) }}
-              </p>
-            </button>
-
             <UAlert
-              v-if="!filteredNotes.length"
+              v-else
               color="neutral"
               variant="subtle"
-              title="Ничего не найдено"
-              description="Измените поиск или создайте новую заметку."
+              title="Нет активной заметки"
+              description="Выберите заметку слева или создайте новую."
             />
+          </UCard>
+        </div>
+      </template>
+
+      <div v-else-if="leftPanel === 'tasks'" class="lg:min-w-0 lg:flex-1">
+        <UCard>
+          <template #header>
+            <div class="flex items-center justify-between gap-2">
+              <h2 class="text-lg font-semibold">Задачи · Kanban</h2>
+
+              <UButton
+                size="xs"
+                color="primary"
+                variant="soft"
+                icon="i-lucide-columns-3"
+                @click="createKanbanColumn"
+              >
+                Добавить колонку
+              </UButton>
+            </div>
+          </template>
+
+          <div class="overflow-x-auto pb-1">
+            <div class="flex min-h-[65vh] gap-3">
+              <div
+                v-for="column in kanbanColumns"
+                :key="column.id"
+                class="group w-[18rem] shrink-0 rounded-lg border border-default bg-muted/20 p-3"
+                @dragover.prevent
+                @drop="
+                  onColumnDrop(column.id);
+                  onTaskDrop(column.id);
+                "
+                @click="onColumnFreeAreaClick(column.id, $event)"
+              >
+                <div
+                  class="mb-3 flex items-start justify-between gap-2"
+                  draggable="true"
+                  @dragstart="onColumnDragStart(column.id)"
+                  @dragend="onColumnDragEnd"
+                >
+                  <div>
+                    <p class="text-sm font-semibold text-highlighted">
+                      {{ column.name }}
+                    </p>
+                    <p class="text-xs text-muted">
+                      {{ tasksInColumn(column.id).length }} задач
+                    </p>
+                  </div>
+
+                  <div
+                    class="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                  >
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-pencil"
+                      aria-label="Переименовать колонку"
+                      @click.stop="renameKanbanColumn(column.id)"
+                    />
+                    <UButton
+                      size="xs"
+                      color="error"
+                      variant="ghost"
+                      icon="i-lucide-trash-2"
+                      aria-label="Удалить колонку"
+                      @click.stop="requestDeleteKanbanColumn(column.id)"
+                    />
+                  </div>
+                </div>
+
+                <div class="space-y-2">
+                  <div
+                    v-for="task in tasksInColumn(column.id)"
+                    :key="task.id"
+                    draggable="true"
+                    class="group/task cursor-grab rounded-md border border-default bg-default p-3 active:cursor-grabbing"
+                    @dragstart="onTaskDragStart(task.id)"
+                    @dragend="onTaskDragEnd"
+                  >
+                    <div class="flex items-start justify-between gap-2">
+                      <p class="text-sm font-medium text-highlighted">
+                        {{ task.title }}
+                      </p>
+
+                      <div
+                        class="flex items-center gap-1 opacity-0 transition-opacity group-hover/task:opacity-100"
+                      >
+                        <UButton
+                          size="xs"
+                          color="neutral"
+                          variant="ghost"
+                          icon="i-lucide-pencil"
+                          aria-label="Переименовать задачу"
+                          @click.stop="renameKanbanTask(task.id)"
+                        />
+                        <UButton
+                          size="xs"
+                          color="error"
+                          variant="ghost"
+                          icon="i-lucide-trash-2"
+                          aria-label="Удалить задачу"
+                          @click.stop="requestDeleteKanbanTask(task.id)"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    v-if="draftTask?.columnId === column.id"
+                    class="rounded-md border border-primary/40 bg-default p-2"
+                  >
+                    <input
+                      :data-draft-input-for="column.id"
+                      v-model="draftTask.title"
+                      class="w-full bg-transparent text-sm outline-none"
+                      placeholder="Новая задача..."
+                      autofocus
+                      @keydown.enter.prevent="commitDraftTask"
+                      @keydown.esc.prevent="cancelDraftTask"
+                      @blur="commitDraftTask"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </UCard>
       </div>
 
-      <div class="lg:min-w-0 lg:flex-1">
+      <div v-else class="lg:min-w-0 lg:flex-1">
         <UCard>
-          <template #header>
-            <div class="flex flex-wrap items-center justify-between gap-2">
-              <h2 class="text-lg font-semibold">Редактор</h2>
-
-              <div class="flex flex-wrap items-center gap-1">
-                <UButton
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  icon="i-lucide-paperclip"
-                  aria-label="Прикрепить файл"
-                  @click="triggerFilePicker"
-                />
-                <UButton
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  icon="i-lucide-bold"
-                  :class="{ 'bg-muted': editor?.isActive('bold') }"
-                  @mousedown.prevent="
-                    editor?.chain().focus().toggleBold().run()
-                  "
-                />
-                <UButton
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  icon="i-lucide-italic"
-                  :class="{ 'bg-muted': editor?.isActive('italic') }"
-                  @mousedown.prevent="
-                    editor?.chain().focus().toggleItalic().run()
-                  "
-                />
-                <UButton
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  icon="i-lucide-underline"
-                  :class="{ 'bg-muted': editor?.isActive('underline') }"
-                  @mousedown.prevent="
-                    editor?.chain().focus().toggleUnderline().run()
-                  "
-                />
-                <UButton
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  icon="i-lucide-code"
-                  :class="{ 'bg-muted': editor?.isActive('code') }"
-                  @mousedown.prevent="
-                    editor?.chain().focus().toggleCode().run()
-                  "
-                />
-                <UButton
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  icon="i-lucide-file-code-2"
-                  :class="{ 'bg-muted': editor?.isActive('codeBlock') }"
-                  @mousedown.prevent="
-                    editor?.chain().focus().toggleCodeBlock().run()
-                  "
-                />
-                <UButton
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  icon="i-lucide-list"
-                  :class="{ 'bg-muted': editor?.isActive('bulletList') }"
-                  @mousedown.prevent="
-                    editor?.chain().focus().toggleBulletList().run()
-                  "
-                />
-                <UButton
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  icon="i-lucide-list-ordered"
-                  :class="{ 'bg-muted': editor?.isActive('orderedList') }"
-                  @mousedown.prevent="
-                    editor?.chain().focus().toggleOrderedList().run()
-                  "
-                />
-                <UButton
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  icon="i-lucide-quote"
-                  :class="{ 'bg-muted': editor?.isActive('blockquote') }"
-                  @mousedown.prevent="
-                    editor?.chain().focus().toggleBlockquote().run()
-                  "
-                />
-                <UButton
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  icon="i-lucide-heading-2"
-                  :class="{
-                    'bg-muted': editor?.isActive('heading', { level: 2 }),
-                  }"
-                  @mousedown.prevent="
-                    editor?.chain().focus().toggleHeading({ level: 2 }).run()
-                  "
-                />
-                <UButton
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  icon="i-lucide-link"
-                  @mousedown.prevent="setLink"
-                />
-                <UButton
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  icon="i-lucide-table"
-                  @mousedown.prevent="insertTable"
-                />
-                <UButton
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  icon="i-lucide-columns-2"
-                  @mousedown.prevent="addColumnAfter"
-                />
-                <UButton
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  icon="i-lucide-rows-2"
-                  @mousedown.prevent="addRowAfter"
-                />
-                <UButton
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  icon="i-lucide-eraser"
-                  @mousedown.prevent="clearFormatting"
-                />
-                <UButton
-                  size="xs"
-                  color="error"
-                  variant="soft"
-                  icon="i-lucide-trash-2"
-                  aria-label="Удалить заметку"
-                  :disabled="!activeNote"
-                  @click="isDeleteModalOpen = true"
-                />
-
-                <input
-                  ref="fileInputRef"
-                  type="file"
-                  class="hidden"
-                  multiple
-                  accept="image/*,.pdf,*/*"
-                  @change="onFileInputChange"
-                />
-              </div>
-            </div>
-          </template>
-
-          <div v-if="activeNote" class="space-y-3">
-            <EditorContent :editor="editor" class="prosemirror-editor" />
-          </div>
-
           <UAlert
-            v-else
             color="neutral"
             variant="subtle"
-            title="Нет активной заметки"
-            description="Выберите заметку слева или создайте новую."
+            title="Граф в разработке"
+            description="Скоро здесь появится визуальный граф заметок."
           />
         </UCard>
       </div>
@@ -467,6 +609,73 @@
             Отмена
           </UButton>
           <UButton color="error" icon="i-lucide-trash-2" @click="confirmDelete">
+            Удалить
+          </UButton>
+        </div>
+      </template>
+    </UModal>
+
+    <UModal
+      v-model:open="isDeleteKanbanColumnModalOpen"
+      title="Удалить колонку?"
+    >
+      <template #body>
+        <p class="text-sm text-muted">
+          Вы точно хотите удалить колонку
+          <span class="font-medium text-highlighted">
+            «{{ pendingDeleteColumn?.name || "Без названия" }}»
+          </span>
+          ? Все задачи в ней тоже будут удалены.
+        </p>
+      </template>
+
+      <template #footer>
+        <div class="flex w-full justify-end gap-2">
+          <UButton
+            color="neutral"
+            variant="soft"
+            @click="cancelDeleteKanbanColumn"
+          >
+            Отмена
+          </UButton>
+          <UButton
+            color="error"
+            variant="soft"
+            icon="i-lucide-trash-2"
+            @click="confirmDeleteKanbanColumn"
+          >
+            Удалить
+          </UButton>
+        </div>
+      </template>
+    </UModal>
+
+    <UModal v-model:open="isDeleteKanbanTaskModalOpen" title="Удалить задачу?">
+      <template #body>
+        <p class="text-sm text-muted">
+          Вы точно хотите удалить задачу
+          <span class="font-medium text-highlighted">
+            «{{ pendingDeleteTask?.title || "Без названия" }}»
+          </span>
+          ?
+        </p>
+      </template>
+
+      <template #footer>
+        <div class="flex w-full justify-end gap-2">
+          <UButton
+            color="neutral"
+            variant="soft"
+            @click="cancelDeleteKanbanTask"
+          >
+            Отмена
+          </UButton>
+          <UButton
+            color="error"
+            variant="soft"
+            icon="i-lucide-trash-2"
+            @click="confirmDeleteKanbanTask"
+          >
             Удалить
           </UButton>
         </div>
@@ -509,6 +718,17 @@ type Folder = {
   name: string;
 };
 
+type KanbanColumn = {
+  id: string;
+  name: string;
+};
+
+type KanbanTask = {
+  id: string;
+  columnId: string;
+  title: string;
+};
+
 type LeftPanel = "notes" | "graph" | "tasks";
 
 type UploadKind = "image" | "pdf" | "file";
@@ -526,12 +746,21 @@ const lowlight = createLowlight(common);
 const searchQuery = ref("");
 const notes = ref<Note[]>([]);
 const folders = ref<Folder[]>([]);
+const kanbanColumns = ref<KanbanColumn[]>([]);
+const kanbanTasks = ref<KanbanTask[]>([]);
 const leftPanel = ref<LeftPanel>("notes");
 const collapsedFolders = ref<string[]>([]);
+const draggedTaskId = ref<string | null>(null);
+const draggedColumnId = ref<string | null>(null);
+const draftTask = ref<{ columnId: string; title: string } | null>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const activeNoteId = ref<string | null>(null);
 const isApplyingContent = ref(false);
 const isDeleteModalOpen = ref(false);
+const isDeleteKanbanColumnModalOpen = ref(false);
+const isDeleteKanbanTaskModalOpen = ref(false);
+const pendingDeleteColumnId = ref<string | null>(null);
+const pendingDeleteTaskId = ref<string | null>(null);
 const accentColor = ref<AccentColor>("blue");
 const colorMode = useColorMode();
 
@@ -651,6 +880,19 @@ const NoteFile = Node.create({
 });
 
 const nowIso = () => new Date().toISOString();
+
+const createDefaultKanbanColumns = (): KanbanColumn[] => [
+  { id: crypto.randomUUID(), name: "В планах" },
+  { id: crypto.randomUUID(), name: "В работе" },
+  { id: crypto.randomUUID(), name: "На проверке" },
+  { id: crypto.randomUUID(), name: "Решено" },
+];
+
+const ensureKanbanColumns = () => {
+  if (!kanbanColumns.value.length) {
+    kanbanColumns.value = createDefaultKanbanColumns();
+  }
+};
 
 const toggleColorMode = () => {
   colorMode.preference = isDark.value ? "light" : "dark";
@@ -792,6 +1034,8 @@ const loadNotes = () => {
       const first = createEmptyNote();
       notes.value = [first];
       folders.value = [];
+      kanbanColumns.value = createDefaultKanbanColumns();
+      kanbanTasks.value = [];
       activeNoteId.value = first.id;
       return;
     }
@@ -808,12 +1052,16 @@ const loadNotes = () => {
 
       notes.value = sortByRecent(normalizedLegacy);
       folders.value = [];
+      kanbanColumns.value = createDefaultKanbanColumns();
+      kanbanTasks.value = [];
       activeNoteId.value = notes.value[0]?.id ?? null;
       return;
     } catch {
       const first = createEmptyNote();
       notes.value = [first];
       folders.value = [];
+      kanbanColumns.value = createDefaultKanbanColumns();
+      kanbanTasks.value = [];
       activeNoteId.value = first.id;
       return;
     }
@@ -827,6 +1075,16 @@ const loadNotes = () => {
 
     const rawNotes = Array.isArray(parsed.notes) ? parsed.notes : [];
     const rawFolders = Array.isArray(parsed.folders) ? parsed.folders : [];
+    const rawKanbanColumns = Array.isArray(
+      (parsed as { kanbanColumns?: unknown[] }).kanbanColumns,
+    )
+      ? (parsed as { kanbanColumns: unknown[] }).kanbanColumns
+      : [];
+    const rawKanbanTasks = Array.isArray(
+      (parsed as { kanbanTasks?: unknown[] }).kanbanTasks,
+    )
+      ? (parsed as { kanbanTasks: unknown[] }).kanbanTasks
+      : [];
 
     const normalized = rawNotes
       .map(normalizeRawNote)
@@ -841,17 +1099,55 @@ const loadNotes = () => {
       })
       .filter((folder): folder is Folder => folder !== null);
 
+    const normalizedKanbanColumns = rawKanbanColumns
+      .map((column) => {
+        if (!column || typeof column !== "object") return null;
+        const c = column as Record<string, unknown>;
+        if (typeof c.id !== "string" || typeof c.name !== "string") return null;
+        return {
+          id: c.id,
+          name: c.name.trim() || "Без названия",
+        } as KanbanColumn;
+      })
+      .filter((column): column is KanbanColumn => column !== null);
+
+    const normalizedKanbanTasks = rawKanbanTasks
+      .map((task) => {
+        if (!task || typeof task !== "object") return null;
+        const t = task as Record<string, unknown>;
+        if (
+          typeof t.id !== "string" ||
+          typeof t.columnId !== "string" ||
+          typeof t.title !== "string"
+        )
+          return null;
+        return {
+          id: t.id,
+          columnId: t.columnId,
+          title: t.title.trim() || "Новая задача",
+        } as KanbanTask;
+      })
+      .filter((task): task is KanbanTask => task !== null);
+
     if (!normalized.length) {
       throw new Error("Invalid notes payload");
     }
 
     notes.value = sortByRecent(normalized);
     folders.value = normalizedFolders;
+    kanbanColumns.value = normalizedKanbanColumns;
+    kanbanTasks.value = normalizedKanbanTasks;
+    ensureKanbanColumns();
+    kanbanTasks.value = kanbanTasks.value.filter((task) =>
+      kanbanColumns.value.some((column) => column.id === task.columnId),
+    );
     activeNoteId.value = notes.value[0]?.id ?? null;
   } catch {
     const first = createEmptyNote();
     notes.value = [first];
     folders.value = [];
+    kanbanColumns.value = createDefaultKanbanColumns();
+    kanbanTasks.value = [];
     activeNoteId.value = first.id;
   }
 };
@@ -859,8 +1155,226 @@ const loadNotes = () => {
 const persistNotes = () => {
   localStorage.setItem(
     STORAGE_KEY,
-    JSON.stringify({ notes: notes.value, folders: folders.value }),
+    JSON.stringify({
+      notes: notes.value,
+      folders: folders.value,
+      kanbanColumns: kanbanColumns.value,
+      kanbanTasks: kanbanTasks.value,
+    }),
   );
+};
+
+const tasksInColumn = (columnId: string) =>
+  kanbanTasks.value.filter((task) => task.columnId === columnId);
+
+const createKanbanColumn = () => {
+  const name = window.prompt("Название колонки", "Новая колонка")?.trim();
+  if (!name) return;
+
+  const id = crypto.randomUUID();
+  kanbanColumns.value.push({ id, name });
+};
+
+const renameKanbanColumn = (columnId: string) => {
+  const column = kanbanColumns.value.find((item) => item.id === columnId);
+  if (!column) return;
+
+  const name = window.prompt("Новое название колонки", column.name)?.trim();
+  if (!name) return;
+
+  column.name = name;
+};
+
+const deleteKanbanColumn = (columnId: string) => {
+  const column = kanbanColumns.value.find((item) => item.id === columnId);
+  if (!column) return;
+
+  kanbanColumns.value = kanbanColumns.value.filter(
+    (item) => item.id !== columnId,
+  );
+  kanbanTasks.value = kanbanTasks.value.filter(
+    (task) => task.columnId !== columnId,
+  );
+
+  if (draftTask.value?.columnId === columnId) {
+    draftTask.value = null;
+  }
+
+  ensureKanbanColumns();
+};
+
+const requestDeleteKanbanColumn = (columnId: string) => {
+  pendingDeleteColumnId.value = columnId;
+  isDeleteKanbanColumnModalOpen.value = true;
+};
+
+const cancelDeleteKanbanColumn = () => {
+  isDeleteKanbanColumnModalOpen.value = false;
+  pendingDeleteColumnId.value = null;
+};
+
+const confirmDeleteKanbanColumn = () => {
+  const id = pendingDeleteColumnId.value;
+  if (id) {
+    deleteKanbanColumn(id);
+  }
+
+  cancelDeleteKanbanColumn();
+};
+
+const renameKanbanTask = (taskId: string) => {
+  const task = kanbanTasks.value.find((item) => item.id === taskId);
+  if (!task) return;
+
+  const title = window.prompt("Новое название задачи", task.title)?.trim();
+  if (!title) return;
+
+  task.title = title;
+};
+
+const deleteKanbanTask = (taskId: string) => {
+  kanbanTasks.value = kanbanTasks.value.filter((task) => task.id !== taskId);
+};
+
+const requestDeleteKanbanTask = (taskId: string) => {
+  pendingDeleteTaskId.value = taskId;
+  isDeleteKanbanTaskModalOpen.value = true;
+};
+
+const cancelDeleteKanbanTask = () => {
+  isDeleteKanbanTaskModalOpen.value = false;
+  pendingDeleteTaskId.value = null;
+};
+
+const confirmDeleteKanbanTask = () => {
+  const id = pendingDeleteTaskId.value;
+  if (id) {
+    deleteKanbanTask(id);
+  }
+
+  cancelDeleteKanbanTask();
+};
+
+const pendingDeleteColumn = computed(() =>
+  kanbanColumns.value.find(
+    (column) => column.id === pendingDeleteColumnId.value,
+  ),
+);
+
+const pendingDeleteTask = computed(() =>
+  kanbanTasks.value.find((task) => task.id === pendingDeleteTaskId.value),
+);
+
+const openDraftTask = (columnId: string) => {
+  draftTask.value = {
+    columnId,
+    title: "",
+  };
+
+  nextTick(() => {
+    const selector = `[data-draft-input-for="${columnId}"]`;
+    const input = document.querySelector<HTMLInputElement>(selector);
+
+    input?.focus();
+
+    requestAnimationFrame(() => {
+      input?.focus();
+    });
+  });
+};
+
+const commitDraftTask = () => {
+  if (!draftTask.value) return;
+
+  const title = draftTask.value.title.trim();
+  const columnId = draftTask.value.columnId;
+
+  if (title) {
+    kanbanTasks.value.push({
+      id: crypto.randomUUID(),
+      columnId,
+      title,
+    });
+  }
+
+  draftTask.value = null;
+};
+
+const cancelDraftTask = () => {
+  draftTask.value = null;
+};
+
+const onColumnFreeAreaClick = (columnId: string, event: MouseEvent) => {
+  const target = event.target as HTMLElement | null;
+  if (!target) return;
+
+  const interactive = target.closest(
+    "button, input, textarea, [draggable='true']",
+  );
+
+  if (interactive) return;
+
+  if (draftTask.value) {
+    commitDraftTask();
+  }
+
+  openDraftTask(columnId);
+};
+
+const onTaskDragStart = (taskId: string) => {
+  draggedTaskId.value = taskId;
+  draggedColumnId.value = null;
+};
+
+const onTaskDragEnd = () => {
+  draggedTaskId.value = null;
+};
+
+const onColumnDragStart = (columnId: string) => {
+  draggedColumnId.value = columnId;
+  draggedTaskId.value = null;
+};
+
+const onColumnDragEnd = () => {
+  draggedColumnId.value = null;
+};
+
+const onColumnDrop = (targetColumnId: string) => {
+  if (!draggedColumnId.value) return;
+
+  const fromIndex = kanbanColumns.value.findIndex(
+    (column) => column.id === draggedColumnId.value,
+  );
+  const toIndex = kanbanColumns.value.findIndex(
+    (column) => column.id === targetColumnId,
+  );
+
+  if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) {
+    draggedColumnId.value = null;
+    return;
+  }
+
+  const [moved] = kanbanColumns.value.splice(fromIndex, 1);
+  if (!moved) {
+    draggedColumnId.value = null;
+    return;
+  }
+
+  kanbanColumns.value.splice(toIndex, 0, moved);
+  draggedColumnId.value = null;
+};
+
+const onTaskDrop = (targetColumnId: string) => {
+  if (!draggedTaskId.value) return;
+
+  const task = kanbanTasks.value.find(
+    (item) => item.id === draggedTaskId.value,
+  );
+  if (task) {
+    task.columnId = targetColumnId;
+  }
+
+  draggedTaskId.value = null;
 };
 
 const activeNote = computed(() =>
@@ -1224,4 +1738,6 @@ onBeforeUnmount(() => {
 
 watch(notes, persistNotes, { deep: true });
 watch(folders, persistNotes, { deep: true });
+watch(kanbanColumns, persistNotes, { deep: true });
+watch(kanbanTasks, persistNotes, { deep: true });
 </script>
