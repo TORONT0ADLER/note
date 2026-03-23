@@ -1,0 +1,214 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+@theme static {
+  --font-sans: "Public Sans", sans-serif;
+
+  --color-sky-50: #eef4ff;
+  --color-sky-100: #d7e8ff;
+  --color-sky-200: #b3d3ff;
+  --color-sky-300: #7bb5ff;
+  --color-sky-400: #4a96ff;
+  --color-sky-500: #1978ff;
+  --color-sky-600: #0e60d6;
+  --color-sky-700: #0a4a9e;
+  --color-sky-800: #083872;
+  --color-sky-900: #05264b;
+}
+
+body {
+  background: var(--ui-bg);
+  color: var(--ui-text);
+}
+
+.UCard,
+.u-card,
+.u-page-hero,
+.u-page-section {
+  background: color-mix(in oklab, var(--ui-bg-elevated) 92%, transparent);
+  border: 1px solid var(--ui-border);
+  box-shadow: 0 10px 24px color-mix(in oklab, var(--ui-text) 8%, transparent);
+}
+
+.prosemirror-editor {
+  min-height: 420px;
+}
+
+.note-editor {
+  background: transparent;
+  min-height: 420px;
+  border: none;
+  border-radius: 0;
+  padding: 0.35rem 0.45rem;
+  font-family: "Inter", "Segoe UI", Roboto, sans-serif;
+  line-height: 1.5;
+  color: var(--ui-text);
+}
+
+.note-editor > *:first-child {
+  margin-top: 0;
+}
+
+.note-editor h1,
+.note-editor h2,
+.note-editor h3 {
+  color: var(--ui-text-highlighted);
+  font-weight: 700;
+  margin: 0.9rem 0 0.45rem;
+  line-height: 1.25;
+}
+
+.note-editor h1 {
+  font-size: 1.35rem;
+}
+
+.note-editor h2 {
+  font-size: 1.15rem;
+}
+
+.note-editor p {
+  margin: 0.45rem 0;
+}
+
+.note-editor ul,
+.note-editor ol {
+  margin: 0.55rem 0;
+  padding-left: 1.25rem;
+}
+
+.note-editor ul {
+  list-style: disc;
+}
+
+.note-editor ol {
+  list-style: decimal;
+}
+
+.note-editor blockquote {
+  margin: 0.75rem 0;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--ui-primary);
+  background: color-mix(in oklab, var(--ui-primary) 8%, transparent);
+  color: var(--ui-text-toned);
+  border-radius: 0.4rem;
+}
+
+.note-editor code {
+  background: var(--ui-bg-muted);
+  border: 1px solid var(--ui-border-muted);
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.35rem;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.85em;
+}
+
+.note-editor pre {
+  background: var(--ui-bg-inverted);
+  color: var(--ui-bg);
+  border-radius: 0.6rem;
+  padding: 0.8rem 0.9rem;
+  margin: 0.8rem 0;
+  overflow-x: auto;
+}
+
+.note-editor pre code {
+  border: none;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+
+.note-editor table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+  border: 1px solid var(--ui-border);
+}
+
+.note-image-block {
+  display: block;
+  max-width: min(100%, 640px);
+  max-height: 420px;
+  width: auto;
+  height: auto;
+  border-radius: 0.5rem;
+  border: 1px solid var(--ui-border);
+  margin: 0.7rem 0;
+}
+
+.note-pdf-block {
+  margin: 0.75rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.note-pdf-embed {
+  width: 100%;
+  min-height: 360px;
+  border-radius: 0.5rem;
+  border: 1px solid var(--ui-border);
+  background: var(--ui-bg-muted);
+}
+
+.note-file-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0.25rem 0 0.6rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--ui-border);
+  background: var(--ui-bg-muted);
+  color: var(--ui-text-highlighted);
+  text-decoration: none;
+}
+
+.note-file-link:hover {
+  background: color-mix(in oklab, var(--ui-primary) 10%, var(--ui-bg-muted));
+}
+
+.note-editor th,
+.note-editor td {
+  border: 1px solid var(--ui-border);
+  padding: 0.4rem 0.55rem;
+  vertical-align: top;
+}
+
+.note-editor th {
+  background: var(--ui-bg-muted);
+  color: var(--ui-text-highlighted);
+  font-weight: 600;
+}
+
+.note-editor:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.tiptap-toolbar {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.6rem;
+}
+
+.tiptap-toolbar button {
+  border: 1px solid var(--ui-border);
+  background: var(--ui-bg-elevated);
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  color: var(--ui-text);
+  cursor: pointer;
+}
+
+.tiptap-toolbar button.active {
+  color: #ffffff;
+  background: #1978ff;
+  border-color: #0e60d6;
+}
+
+.tiptap-toolbar button:hover {
+  background: var(--ui-bg-muted);
+}

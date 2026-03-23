@@ -1,0 +1,47 @@
+/* Sky-blue theme for Noteforge */
+:root {
+  --color-primary-50: #f0f9ff;
+  --color-primary-100: #e0f2fe;
+  --color-primary-200: #bae6fd;
+  --color-primary-300: #7dd3fc;
+  --color-primary-400: #38bdf8;
+  --color-primary-500: #0ea5e9;
+  --color-primary-600: #0284c7;
+  --color-primary-700: #0369a1;
+  --color-primary-800: #075985;
+  --color-primary-900: #0c4a6e;
+  --color-primary-950: #082f49;
+}
+
+/* Custom styles for TipTap editor */
+.note-editor {
+  padding: 0.5rem;
+  min-height: 200px;
+  outline: none;
+}
+
+.tiptap-toolbar {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.tiptap-toolbar button {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #d1d5db;
+  background: white;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.tiptap-toolbar button:hover {
+  background: #f3f4f6;
+}
+
+.tiptap-toolbar button.active {
+  background: var(--color-primary-100);
+  border-color: var(--color-primary-300);
+}
