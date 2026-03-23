@@ -212,3 +212,41 @@ body {
 .tiptap-toolbar button:hover {
   background: var(--ui-bg-muted);
 }
+
+.notes-list-pane {
+  width: 100%;
+}
+
+@media (min-width: 1024px) {
+  .notes-list-pane {
+    width: var(--notes-list-pane-width, 300px);
+    min-width: var(--notes-list-pane-width, 300px);
+    max-width: var(--notes-list-pane-width, 300px);
+  }
+
+  .notes-panel-resizer {
+    width: var(--notes-resizer-width, 16px);
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    cursor: ew-resize;
+    touch-action: none;
+    user-select: none;
+  }
+
+  .notes-panel-resizer__handle {
+    width: 2px;
+    border-radius: 9999px;
+    margin-block: 10px;
+    background: color-mix(in oklab, var(--ui-border) 80%, transparent);
+    transition: background-color 0.2s ease;
+  }
+
+  .notes-panel-resizer:hover .notes-panel-resizer__handle {
+    background: color-mix(in oklab, var(--ui-primary) 60%, var(--ui-border));
+  }
+
+  .notes-panel-resizer:active .notes-panel-resizer__handle {
+    background: color-mix(in oklab, var(--ui-primary) 85%, var(--ui-border));
+  }
+}
