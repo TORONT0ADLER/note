@@ -140,21 +140,35 @@
                   </p>
 
                   <!-- old class for notes item: w-full rounded-md border p-3 text-left transition -->
-                  <button
+                  <div
                     v-for="note in rootFilteredNotes"
                     :key="note.id"
-                    class="w-full rounded px-2 py-1.5 text-left transition"
+                    class="group flex items-center gap-1 rounded px-1 transition"
                     :class="
                       activeNoteId === note.id
                         ? 'bg-primary/10'
                         : 'hover:bg-muted/30'
                     "
-                    @click="activeNoteId = note.id"
                   >
-                    <p class="truncate text-sm font-medium text-highlighted">
-                      {{ noteTitle(note) }}
-                    </p>
-                  </button>
+                    <button
+                      class="min-w-0 flex-1 px-1 py-1.5 text-left"
+                      @click="activeNoteId = note.id"
+                    >
+                      <p class="truncate text-sm font-medium text-highlighted">
+                        {{ noteTitle(note) }}
+                      </p>
+                    </button>
+
+                    <UButton
+                      size="xs"
+                      color="error"
+                      variant="ghost"
+                      icon="i-lucide-trash-2"
+                      aria-label="Удалить заметку"
+                      class="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                      @click.stop="requestDeleteNote(note.id)"
+                    />
+                  </div>
                 </div>
 
                 <div
@@ -224,40 +238,68 @@
                   </div>
 
                   <!-- old class for notes item: w-full rounded-md border p-3 text-left transition -->
-                  <button
+                  <div
                     v-show="!isFolderCollapsed(folder.id)"
                     v-for="note in notesInFolder(folder.id)"
                     :key="note.id"
-                    class="w-full rounded px-2 py-1.5 text-left transition"
+                    class="group flex items-center gap-1 rounded px-1 transition"
                     :class="
                       activeNoteId === note.id
                         ? 'bg-primary/10'
                         : 'hover:bg-muted/30'
                     "
+                  >
+                    <button
+                      class="min-w-0 flex-1 px-1 py-1.5 text-left"
+                      @click="activeNoteId = note.id"
+                    >
+                      <p class="truncate text-sm font-medium text-highlighted">
+                        {{ noteTitle(note) }}
+                      </p>
+                    </button>
+
+                    <UButton
+                      size="xs"
+                      color="error"
+                      variant="ghost"
+                      icon="i-lucide-trash-2"
+                      aria-label="Удалить заметку"
+                      class="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                      @click.stop="requestDeleteNote(note.id)"
+                    />
+                  </div>
+                </div>
+
+                <!-- old class for notes item: w-full rounded-md border p-3 text-left transition -->
+                <div
+                  v-for="note in orphanFilteredNotes"
+                  :key="note.id"
+                  class="group flex items-center gap-1 rounded px-1 transition"
+                  :class="
+                    activeNoteId === note.id
+                      ? 'bg-primary/10'
+                      : 'hover:bg-muted/30'
+                  "
+                >
+                  <button
+                    class="min-w-0 flex-1 px-1 py-1.5 text-left"
                     @click="activeNoteId = note.id"
                   >
                     <p class="truncate text-sm font-medium text-highlighted">
                       {{ noteTitle(note) }}
                     </p>
                   </button>
-                </div>
 
-                <!-- old class for notes item: w-full rounded-md border p-3 text-left transition -->
-                <button
-                  v-for="note in orphanFilteredNotes"
-                  :key="note.id"
-                  class="w-full rounded px-2 py-1.5 text-left transition"
-                  :class="
-                    activeNoteId === note.id
-                      ? 'bg-primary/10'
-                      : 'hover:bg-muted/30'
-                  "
-                  @click="activeNoteId = note.id"
-                >
-                  <p class="truncate text-sm font-medium text-highlighted">
-                    {{ noteTitle(note) }}
-                  </p>
-                </button>
+                  <UButton
+                    size="xs"
+                    color="error"
+                    variant="ghost"
+                    icon="i-lucide-trash-2"
+                    aria-label="Удалить заметку"
+                    class="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                    @click.stop="requestDeleteNote(note.id)"
+                  />
+                </div>
 
                 <UAlert
                   v-if="!filteredNotes.length"
@@ -426,16 +468,6 @@
                       icon="i-lucide-eraser"
                       @mousedown.prevent="clearFormatting"
                     />
-                    <UButton
-                      size="xs"
-                      color="error"
-                      variant="soft"
-                      icon="i-lucide-trash-2"
-                      aria-label="Удалить заметку"
-                      :disabled="!activeNote"
-                      @click="isDeleteModalOpen = true"
-                    />
-
                     <input
                       ref="fileInputRef"
                       type="file"
@@ -829,6 +861,30 @@ const notesWorkspaceStyle = computed<Record<string, string>>(() => ({
   "--notes-resizer-width": `${NOTES_RESIZER_WIDTH}px`,
 }));
 
+const generateId = (): string => {
+  const webCrypto = globalThis.crypto;
+
+  if (webCrypto?.randomUUID) {
+    return webCrypto.randomUUID();
+  }
+
+  if (webCrypto?.getRandomValues) {
+    const bytes = new Uint8Array(16);
+    webCrypto.getRandomValues(bytes);
+
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+
+    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(
+      "",
+    );
+
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  }
+
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+};
+
 const resizeNotesPaneFromClientX = (clientX: number) => {
   const workspaceRect = notesWorkspaceRef.value?.getBoundingClientRect();
   if (!workspaceRect) return;
@@ -987,10 +1043,10 @@ const NoteFile = Node.create({
 const nowIso = () => new Date().toISOString();
 
 const createDefaultKanbanColumns = (): KanbanColumn[] => [
-  { id: crypto.randomUUID(), name: "В планах" },
-  { id: crypto.randomUUID(), name: "В работе" },
-  { id: crypto.randomUUID(), name: "На проверке" },
-  { id: crypto.randomUUID(), name: "Решено" },
+  { id: generateId(), name: "В планах" },
+  { id: generateId(), name: "В работе" },
+  { id: generateId(), name: "На проверке" },
+  { id: generateId(), name: "Решено" },
 ];
 
 const ensureKanbanColumns = () => {
@@ -1044,8 +1100,7 @@ const normalizeRawNote = (raw: unknown): Note | null => {
   if (!raw || typeof raw !== "object") return null;
 
   const note = raw as Record<string, unknown>;
-  const id =
-    typeof note.id === "string" && note.id ? note.id : crypto.randomUUID();
+  const id = typeof note.id === "string" && note.id ? note.id : generateId();
   const updatedAt =
     typeof note.updatedAt === "string" && note.updatedAt
       ? note.updatedAt
@@ -1073,7 +1128,7 @@ const normalizeRawNote = (raw: unknown): Note | null => {
 };
 
 const createEmptyNote = (): Note => ({
-  id: crypto.randomUUID(),
+  id: generateId(),
   folderId: null,
   content: createEmptyDoc(),
   updatedAt: nowIso(),
@@ -1276,7 +1331,7 @@ const createKanbanColumn = () => {
   const name = window.prompt("Название колонки", "Новая колонка")?.trim();
   if (!name) return;
 
-  const id = crypto.randomUUID();
+  const id = generateId();
   kanbanColumns.value.push({ id, name });
 };
 
@@ -1396,7 +1451,7 @@ const commitDraftTask = () => {
 
   if (title) {
     kanbanTasks.value.push({
-      id: crypto.randomUUID(),
+      id: generateId(),
       columnId,
       title,
     });
@@ -1553,7 +1608,7 @@ const createNote = (folderId: string | null = null) => {
 const createFolder = () => {
   const name = window.prompt("Название папки", "Новая папка")?.trim();
   if (!name) return;
-  const id = crypto.randomUUID();
+  const id = generateId();
   folders.value.unshift({ id, name });
   collapsedFolders.value = collapsedFolders.value.filter(
     (folderId) => folderId !== id,
@@ -1622,6 +1677,11 @@ const deleteActiveNote = () => {
   }
 
   activeNoteId.value = notes.value[0]?.id ?? null;
+};
+
+const requestDeleteNote = (noteId: string) => {
+  activeNoteId.value = noteId;
+  isDeleteModalOpen.value = true;
 };
 
 const confirmDelete = () => {
