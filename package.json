@@ -16,7 +16,8 @@
     "typecheck": "nuxt typecheck",
     "electron": "electron .",
     "electron:dev": "concurrently \"pnpm dev\" \"wait-on http://localhost:3000 && electron .\"",
-    "dist": "pnpm build && electron-builder"
+    "dist": "pnpm build && electron-builder",
+    "dist:win": "pnpm build && electron-builder --win nsis --x64"
   },
   "build": {
     "appId": "com.note.app",
