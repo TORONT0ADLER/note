@@ -1,5 +1,12 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
+  ssr: false,
+
+  app: {
+    baseURL: "./",
+    buildAssetsDir: "_nuxt/",
+  },
+
   modules: ["@nuxt/eslint", "@nuxt/ui"],
 
   devtools: {

@@ -1,14 +1,37 @@
 {
   "name": "noteforge",
+  "version": "1.0.0",
+  "description": "Desktop notes app built with Nuxt and Electron",
+  "author": "Ilya",
   "private": true,
-  "type": "module",
+  "type": "commonjs",
+  "main": "electron/main.js",
+  "packageManager": "pnpm@10.32.1",
   "scripts": {
-    "build": "nuxt build",
     "dev": "nuxt dev",
+    "build": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "lint": "eslint .",
-    "typecheck": "nuxt typecheck"
+    "typecheck": "nuxt typecheck",
+    "electron": "electron .",
+    "electron:dev": "concurrently \"pnpm dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "dist": "pnpm build && electron-builder"
+  },
+  "build": {
+    "appId": "com.note.app",
+    "productName": "NoteForge",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      ".output/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis"
+    }
   },
   "dependencies": {
     "@iconify-json/lucide": "^1.2.98",
@@ -27,13 +50,17 @@
     "highlight.js": "^11.11.1",
     "lowlight": "^3.3.0",
     "nuxt": "^4.4.2",
+    "serve-handler": "^6.1.7",
     "tailwindcss": "^4.2.1"
   },
   "devDependencies": {
     "@nuxt/eslint": "^1.15.2",
+    "concurrently": "^9.2.1",
+    "electron": "^41.0.4",
+    "electron-builder": "^26.8.1",
     "eslint": "^10.0.3",
     "typescript": "^5.9.3",
-    "vue-tsc": "^3.2.5"
-  },
-  "packageManager": "pnpm@10.32.1"
+    "vue-tsc": "^3.2.5",
+    "wait-on": "^9.0.4"
+  }
 }
