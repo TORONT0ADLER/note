@@ -112,7 +112,7 @@
                       icon="i-lucide-folder-plus"
                       color="neutral"
                       variant="soft"
-                      @click="createFolder"
+                      @click="createFolder()"
                     >
                       Папка
                     </UButton>
@@ -172,26 +172,45 @@
                 </div>
 
                 <div
-                  v-for="folder in folders"
-                  :key="folder.id"
-                  class="space-y-1"
+                  v-for="folderEntry in visibleFolders"
+                  :key="folderEntry.folder.id"
+                  class="relative space-y-1"
                 >
-                  <div class="group flex items-center justify-between px-1">
+                  <div
+                    v-if="folderEntry.depth > 0"
+                    class="pointer-events-none absolute inset-y-0 left-1 z-10 flex items-stretch"
+                    aria-hidden="true"
+                  >
+                    <span
+                      v-for="level in folderEntry.depth"
+                      :key="`folder-guide-${folderEntry.folder.id}-${level}`"
+                      class="mr-2 w-px bg-primary/40"
+                    />
+                  </div>
+
+                  <div
+                    class="group relative flex items-center justify-between px-1"
+                  >
                     <button
                       class="flex min-w-0 items-center gap-1 text-left"
-                      @click="toggleFolder(folder.id)"
+                      :style="{
+                        paddingLeft: `${0.5 + folderEntry.depth * 0.75}rem`,
+                      }"
+                      @click="toggleFolder(folderEntry.folder.id)"
                     >
                       <UIcon
                         class="h-4 w-4 text-muted transition-transform"
                         :class="{
-                          'rotate-[-90deg]': isFolderCollapsed(folder.id),
+                          'rotate-[-90deg]': isFolderCollapsed(
+                            folderEntry.folder.id,
+                          ),
                         }"
                         name="i-lucide-chevron-down"
                       />
                       <p
                         class="truncate text-xs font-medium uppercase tracking-wide text-muted"
                       >
-                        {{ folder.name }}
+                        {{ folderEntry.folder.name }}
                       </p>
                     </button>
 
@@ -204,19 +223,15 @@
                         variant="ghost"
                         icon="i-lucide-pencil"
                         aria-label="Переименовать папку"
-                        @click="renameFolder(folder.id)"
+                        @click="renameFolder(folderEntry.folder.id)"
                       />
                       <UButton
                         size="xs"
                         color="neutral"
                         variant="ghost"
-                        :icon="
-                          isFolderCollapsed(folder.id)
-                            ? 'i-lucide-folder-open'
-                            : 'i-lucide-folder'
-                        "
-                        aria-label="Свернуть или развернуть папку"
-                        @click="toggleFolder(folder.id)"
+                        icon="i-lucide-folder-plus"
+                        aria-label="Создать подпапку"
+                        @click="createFolder(folderEntry.folder.id)"
                       />
                       <UButton
                         size="xs"
@@ -224,7 +239,7 @@
                         variant="ghost"
                         icon="i-lucide-file-plus"
                         aria-label="Создать заметку в папке"
-                        @click="createNote(folder.id)"
+                        @click="createNote(folderEntry.folder.id)"
                       />
                       <UButton
                         size="xs"
@@ -232,41 +247,60 @@
                         variant="ghost"
                         icon="i-lucide-trash-2"
                         aria-label="Удалить папку"
-                        @click="deleteFolder(folder.id)"
+                        @click="requestDeleteFolder(folderEntry.folder.id)"
                       />
                     </div>
                   </div>
 
-                  <!-- old class for notes item: w-full rounded-md border p-3 text-left transition -->
                   <div
-                    v-show="!isFolderCollapsed(folder.id)"
-                    v-for="note in notesInFolder(folder.id)"
-                    :key="note.id"
-                    class="group flex items-center gap-1 rounded px-1 transition"
-                    :class="
-                      activeNoteId === note.id
-                        ? 'bg-primary/10'
-                        : 'hover:bg-muted/30'
-                    "
+                    v-show="!isFolderCollapsed(folderEntry.folder.id)"
+                    class="relative space-y-1"
                   >
-                    <button
-                      class="min-w-0 flex-1 px-1 py-1.5 text-left"
-                      @click="activeNoteId = note.id"
+                    <div
+                      class="pointer-events-none absolute inset-y-0 left-1 z-10 flex items-stretch"
+                      aria-hidden="true"
                     >
-                      <p class="truncate text-sm font-medium text-highlighted">
-                        {{ noteTitle(note) }}
-                      </p>
-                    </button>
+                      <span
+                        v-for="level in folderEntry.depth + 1"
+                        :key="`note-guide-rail-${folderEntry.folder.id}-${level}`"
+                        class="mr-2 w-px bg-primary/30"
+                      />
+                    </div>
 
-                    <UButton
-                      size="xs"
-                      color="error"
-                      variant="ghost"
-                      icon="i-lucide-trash-2"
-                      aria-label="Удалить заметку"
-                      class="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
-                      @click.stop="requestDeleteNote(note.id)"
-                    />
+                    <div
+                      v-for="note in notesInFolder(folderEntry.folder.id)"
+                      :key="note.id"
+                      class="group relative flex items-center gap-1 rounded px-1 transition"
+                      :class="
+                        activeNoteId === note.id
+                          ? 'bg-primary/10'
+                          : 'hover:bg-muted/30'
+                      "
+                    >
+                      <button
+                        class="min-w-0 flex-1 px-1 py-1.5 text-left"
+                        :style="{
+                          paddingLeft: `${0.5 + (folderEntry.depth + 1) * 0.75}rem`,
+                        }"
+                        @click="activeNoteId = note.id"
+                      >
+                        <p
+                          class="truncate text-sm font-medium text-highlighted"
+                        >
+                          {{ noteTitle(note) }}
+                        </p>
+                      </button>
+
+                      <UButton
+                        size="xs"
+                        color="error"
+                        variant="ghost"
+                        icon="i-lucide-trash-2"
+                        aria-label="Удалить заметку"
+                        class="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                        @click.stop="requestDeleteNote(note.id)"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -729,6 +763,69 @@
         </div>
       </template>
     </UModal>
+
+    <UModal v-model:open="isDeleteFolderModalOpen" title="Удалить папку?">
+      <template #body>
+        <p class="text-sm text-muted">
+          Вы точно хотите удалить папку
+          <span class="font-medium text-highlighted">
+            «{{ pendingDeleteFolder?.name || "Без названия" }}»
+          </span>
+          ?
+          <span v-if="pendingDeleteFolderHasNotes">
+            Заметки из неё останутся и будут перенесены в «Без папки».
+          </span>
+        </p>
+      </template>
+
+      <template #footer>
+        <div class="flex w-full justify-end gap-2">
+          <UButton color="neutral" variant="soft" @click="cancelDeleteFolder">
+            Отмена
+          </UButton>
+          <UButton
+            color="error"
+            variant="soft"
+            icon="i-lucide-trash-2"
+            @click="confirmDeleteFolder"
+          >
+            Удалить
+          </UButton>
+        </div>
+      </template>
+    </UModal>
+
+    <UModal v-model:open="isTextInputModalOpen" :title="textInputModalTitle">
+      <template #body>
+        <div class="mx-auto w-full max-w-md space-y-3">
+          <p v-if="textInputModalDescription" class="text-sm text-muted">
+            {{ textInputModalDescription }}
+          </p>
+
+          <UInput
+            ref="textInputRef"
+            v-model="textInputModalValue"
+            class="w-full"
+            :placeholder="textInputModalPlaceholder"
+            @keydown.enter.prevent="confirmTextInputModal"
+          />
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex w-full justify-end gap-2">
+          <UButton color="neutral" variant="soft" @click="cancelTextInputModal">
+            Отмена
+          </UButton>
+          <UButton
+            :color="textInputModalConfirmColor"
+            @click="confirmTextInputModal"
+          >
+            {{ textInputModalConfirmLabel }}
+          </UButton>
+        </div>
+      </template>
+    </UModal>
   </UContainer>
 </template>
 
@@ -764,6 +861,7 @@ type Note = {
 type Folder = {
   id: string;
   name: string;
+  parentId: string | null;
 };
 
 type KanbanColumn = {
@@ -781,10 +879,24 @@ type LeftPanel = "notes" | "graph" | "tasks";
 
 type UploadKind = "image" | "pdf" | "file";
 
+type TextInputModalOptions = {
+  title: string;
+  description?: string;
+  placeholder?: string;
+  initialValue?: string;
+  confirmLabel?: string;
+  confirmColor?: "primary" | "neutral";
+};
+
 type NoteMeta = {
   plain: string;
   title: string;
   preview: string;
+};
+
+type VisibleFolder = {
+  folder: Folder;
+  depth: number;
 };
 
 const STORAGE_KEY = "noteforge.notes.v3";
@@ -813,8 +925,21 @@ const isApplyingContent = ref(false);
 const isDeleteModalOpen = ref(false);
 const isDeleteKanbanColumnModalOpen = ref(false);
 const isDeleteKanbanTaskModalOpen = ref(false);
+const isDeleteFolderModalOpen = ref(false);
+const isTextInputModalOpen = ref(false);
 const pendingDeleteColumnId = ref<string | null>(null);
 const pendingDeleteTaskId = ref<string | null>(null);
+const pendingDeleteFolderId = ref<string | null>(null);
+const textInputRef = ref<HTMLInputElement | null>(null);
+const textInputModalTitle = ref("");
+const textInputModalDescription = ref("");
+const textInputModalPlaceholder = ref("");
+const textInputModalValue = ref("");
+const textInputModalConfirmLabel = ref("Сохранить");
+const textInputModalConfirmColor = ref<"primary" | "neutral">("primary");
+const textInputModalResolver = ref<((value: string | null) => void) | null>(
+  null,
+);
 const accentColor = ref<AccentColor>("blue");
 const notesWorkspaceRef = ref<HTMLElement | null>(null);
 const notesListWidth = ref(260);
@@ -1255,9 +1380,24 @@ const loadNotes = () => {
         if (!folder || typeof folder !== "object") return null;
         const f = folder as Record<string, unknown>;
         if (typeof f.id !== "string" || typeof f.name !== "string") return null;
-        return { id: f.id, name: f.name.trim() || "Без названия" } as Folder;
+        return {
+          id: f.id,
+          name: f.name.trim() || "Без названия",
+          parentId: typeof f.parentId === "string" ? f.parentId : null,
+        } as Folder;
       })
       .filter((folder): folder is Folder => folder !== null);
+
+    const folderIds = new Set(normalizedFolders.map((folder) => folder.id));
+    const sanitizedFolders = normalizedFolders.map((folder) => ({
+      ...folder,
+      parentId:
+        folder.parentId &&
+        folder.parentId !== folder.id &&
+        folderIds.has(folder.parentId)
+          ? folder.parentId
+          : null,
+    }));
 
     const normalizedKanbanColumns = rawKanbanColumns
       .map((column) => {
@@ -1294,7 +1434,7 @@ const loadNotes = () => {
     }
 
     notes.value = sortByRecent(normalized);
-    folders.value = normalizedFolders;
+    folders.value = sanitizedFolders;
     kanbanColumns.value = normalizedKanbanColumns;
     kanbanTasks.value = normalizedKanbanTasks;
     ensureKanbanColumns();
@@ -1327,19 +1467,65 @@ const persistNotes = () => {
 const tasksInColumn = (columnId: string) =>
   kanbanTasks.value.filter((task) => task.columnId === columnId);
 
-const createKanbanColumn = () => {
-  const name = window.prompt("Название колонки", "Новая колонка")?.trim();
+const openTextInputModal = (options: TextInputModalOptions) =>
+  new Promise<string | null>((resolve) => {
+    textInputModalTitle.value = options.title;
+    textInputModalDescription.value = options.description || "";
+    textInputModalPlaceholder.value = options.placeholder || "";
+    textInputModalValue.value = options.initialValue || "";
+    textInputModalConfirmLabel.value = options.confirmLabel || "Сохранить";
+    textInputModalConfirmColor.value = options.confirmColor || "primary";
+    textInputModalResolver.value = resolve;
+    isTextInputModalOpen.value = true;
+  });
+
+const closeTextInputModal = (value: string | null) => {
+  const resolver = textInputModalResolver.value;
+
+  isTextInputModalOpen.value = false;
+  textInputModalResolver.value = null;
+
+  resolver?.(value);
+};
+
+const cancelTextInputModal = () => {
+  closeTextInputModal(null);
+};
+
+const confirmTextInputModal = () => {
+  closeTextInputModal(textInputModalValue.value);
+};
+
+const createKanbanColumn = async () => {
+  const name = (
+    await openTextInputModal({
+      title: "Новая колонка",
+      description: "Введите название новой колонки kanban.",
+      placeholder: "Например: Бэклог",
+      initialValue: "Новая колонка",
+      confirmLabel: "Создать",
+    })
+  )?.trim();
+
   if (!name) return;
 
   const id = generateId();
   kanbanColumns.value.push({ id, name });
 };
 
-const renameKanbanColumn = (columnId: string) => {
+const renameKanbanColumn = async (columnId: string) => {
   const column = kanbanColumns.value.find((item) => item.id === columnId);
   if (!column) return;
 
-  const name = window.prompt("Новое название колонки", column.name)?.trim();
+  const name = (
+    await openTextInputModal({
+      title: "Переименовать колонку",
+      placeholder: "Новое название",
+      initialValue: column.name,
+      confirmLabel: "Сохранить",
+    })
+  )?.trim();
+
   if (!name) return;
 
   column.name = name;
@@ -1382,11 +1568,19 @@ const confirmDeleteKanbanColumn = () => {
   cancelDeleteKanbanColumn();
 };
 
-const renameKanbanTask = (taskId: string) => {
+const renameKanbanTask = async (taskId: string) => {
   const task = kanbanTasks.value.find((item) => item.id === taskId);
   if (!task) return;
 
-  const title = window.prompt("Новое название задачи", task.title)?.trim();
+  const title = (
+    await openTextInputModal({
+      title: "Переименовать задачу",
+      placeholder: "Новое название задачи",
+      initialValue: task.title,
+      confirmLabel: "Сохранить",
+    })
+  )?.trim();
+
   if (!title) return;
 
   task.title = title;
@@ -1423,6 +1617,14 @@ const pendingDeleteColumn = computed(() =>
 
 const pendingDeleteTask = computed(() =>
   kanbanTasks.value.find((task) => task.id === pendingDeleteTaskId.value),
+);
+
+const pendingDeleteFolder = computed(() =>
+  folders.value.find((folder) => folder.id === pendingDeleteFolderId.value),
+);
+
+const pendingDeleteFolderHasNotes = computed(() =>
+  notes.value.some((note) => note.folderId === pendingDeleteFolderId.value),
 );
 
 const openDraftTask = (columnId: string) => {
@@ -1569,6 +1771,35 @@ const rootFilteredNotes = computed(() =>
 const notesInFolder = (folderId: string) =>
   filteredNotes.value.filter((note) => note.folderId === folderId);
 
+const visibleFolders = computed<VisibleFolder[]>(() => {
+  const byParent = new Map<string | null, Folder[]>();
+
+  for (const folder of folders.value) {
+    const parentId = folder.parentId;
+    const siblings = byParent.get(parentId) || [];
+    siblings.push(folder);
+    byParent.set(parentId, siblings);
+  }
+
+  const result: VisibleFolder[] = [];
+
+  const walk = (parentId: string | null, depth: number) => {
+    const children = byParent.get(parentId) || [];
+
+    for (const folder of children) {
+      result.push({ folder, depth });
+
+      if (!isFolderCollapsed(folder.id)) {
+        walk(folder.id, depth + 1);
+      }
+    }
+  };
+
+  walk(null, 0);
+
+  return result;
+});
+
 const orphanFilteredNotes = computed(() =>
   filteredNotes.value.filter(
     (note) =>
@@ -1605,14 +1836,32 @@ const createNote = (folderId: string | null = null) => {
   activeNoteId.value = note.id;
 };
 
-const createFolder = () => {
-  const name = window.prompt("Название папки", "Новая папка")?.trim();
+const createFolder = async (parentId: string | null = null) => {
+  const isNested = !!parentId;
+
+  const name = (
+    await openTextInputModal({
+      title: isNested ? "Новая подпапка" : "Новая папка",
+      description: isNested ? "" : "Введите название папки для заметок.",
+      placeholder: "Например: Идеи",
+      initialValue: "",
+      confirmLabel: "Создать",
+    })
+  )?.trim();
+
   if (!name) return;
+
   const id = generateId();
-  folders.value.unshift({ id, name });
+  folders.value.unshift({ id, name, parentId });
   collapsedFolders.value = collapsedFolders.value.filter(
     (folderId) => folderId !== id,
   );
+
+  if (parentId) {
+    collapsedFolders.value = collapsedFolders.value.filter(
+      (folderId) => folderId !== parentId,
+    );
+  }
 };
 
 const isFolderCollapsed = (folderId: string) =>
@@ -1628,35 +1877,58 @@ const toggleFolder = (folderId: string) => {
   collapsedFolders.value = [...collapsedFolders.value, folderId];
 };
 
+const requestDeleteFolder = (folderId: string) => {
+  pendingDeleteFolderId.value = folderId;
+  isDeleteFolderModalOpen.value = true;
+};
+
+const cancelDeleteFolder = () => {
+  isDeleteFolderModalOpen.value = false;
+  pendingDeleteFolderId.value = null;
+};
+
 const deleteFolder = (folderId: string) => {
   const targetFolder = folders.value.find((folder) => folder.id === folderId);
   if (!targetFolder) return;
 
-  const hasNotes = notes.value.some((note) => note.folderId === folderId);
-  const confirmed = window.confirm(
-    hasNotes
-      ? `Удалить папку «${targetFolder.name}»? Заметки из неё останутся и будут перенесены в «Без папки».`
-      : `Удалить папку «${targetFolder.name}»?`,
-  );
-
-  if (!confirmed) return;
+  const targetParentId = targetFolder.parentId;
 
   notes.value = notes.value.map((note) =>
-    note.folderId === folderId ? { ...note, folderId: null } : note,
+    note.folderId === folderId ? { ...note, folderId: targetParentId } : note,
   );
-  folders.value = folders.value.filter((folder) => folder.id !== folderId);
+  folders.value = folders.value
+    .map((folder) =>
+      folder.parentId === folderId
+        ? { ...folder, parentId: targetParentId }
+        : folder,
+    )
+    .filter((folder) => folder.id !== folderId);
   collapsedFolders.value = collapsedFolders.value.filter(
     (id) => id !== folderId,
   );
 };
 
-const renameFolder = (folderId: string) => {
+const confirmDeleteFolder = () => {
+  const id = pendingDeleteFolderId.value;
+  if (id) {
+    deleteFolder(id);
+  }
+
+  cancelDeleteFolder();
+};
+
+const renameFolder = async (folderId: string) => {
   const targetFolder = folders.value.find((folder) => folder.id === folderId);
   if (!targetFolder) return;
 
-  const nextName = window
-    .prompt("Новое название папки", targetFolder.name)
-    ?.trim();
+  const nextName = (
+    await openTextInputModal({
+      title: "Переименовать папку",
+      placeholder: "Новое название папки",
+      initialValue: targetFolder.name,
+      confirmLabel: "Сохранить",
+    })
+  )?.trim();
 
   if (!nextName) return;
 
@@ -1747,14 +2019,28 @@ watch(
   { immediate: true },
 );
 
-const setLink = () => {
-  const url = window.prompt("Введите URL (https://...)", "https://");
+const setLink = async () => {
   if (!editor.value) return;
-  if (!url) {
+
+  const url = await openTextInputModal({
+    title: "Вставить ссылку",
+    description:
+      "Введите полный URL (например, https://example.com). Оставьте пустым, чтобы убрать ссылку.",
+    placeholder: "https://",
+    initialValue: "https://",
+    confirmLabel: "Применить",
+  });
+
+  if (url === null) return;
+
+  const normalizedUrl = url.trim();
+
+  if (!normalizedUrl) {
     editor.value.chain().focus().unsetLink().run();
     return;
   }
-  editor.value.chain().focus().setLink({ href: url }).run();
+
+  editor.value.chain().focus().setLink({ href: normalizedUrl }).run();
 };
 
 const clearFormatting = () => {
@@ -1920,4 +2206,11 @@ watch(notes, persistNotes, { deep: true });
 watch(folders, persistNotes, { deep: true });
 watch(kanbanColumns, persistNotes, { deep: true });
 watch(kanbanTasks, persistNotes, { deep: true });
+watch(isTextInputModalOpen, (open) => {
+  if (!open) return;
+
+  nextTick(() => {
+    textInputRef.value?.focus();
+  });
+});
 </script>
