@@ -87,6 +87,16 @@
               @click="leftPanel = 'tasks'"
             />
           </UTooltip>
+
+          <UTooltip text="Библиотека" :delay-duration="0">
+            <UButton
+              color="neutral"
+              :variant="leftPanel === 'library' ? 'soft' : 'ghost'"
+              icon="i-lucide-library-big"
+              aria-label="Библиотека"
+              @click="leftPanel = 'library'"
+            />
+          </UTooltip>
         </div>
       </div>
 
@@ -139,7 +149,6 @@
                     Без папки
                   </p>
 
-                  <!-- old class for notes item: w-full rounded-md border p-3 text-left transition -->
                   <div
                     v-for="note in rootFilteredNotes"
                     :key="note.id"
@@ -304,7 +313,6 @@
                   </div>
                 </div>
 
-                <!-- old class for notes item: w-full rounded-md border p-3 text-left transition -->
                 <div
                   v-for="note in orphanFilteredNotes"
                   :key="note.id"
@@ -359,164 +367,208 @@
           <div class="notes-editor-pane lg:min-w-0 lg:flex-1">
             <UCard>
               <template #header>
-                <div class="flex flex-wrap items-center justify-between gap-2">
-                  <h2 class="text-lg font-semibold">Редактор</h2>
+                <div class="space-y-2">
+                  <!-- Editor toolbar -->
+                  <div
+                    class="flex flex-wrap items-center justify-between gap-2"
+                  >
+                    <div class="flex items-center gap-2">
+                      <UTooltip
+                        :text="
+                          vaultPath
+                            ? 'Сменить папку хранилища'
+                            : 'Выбрать папку хранилища (как в Obsidian)'
+                        "
+                      >
+                        <UButton
+                          size="xs"
+                          :color="vaultPath ? 'primary' : 'neutral'"
+                          :variant="vaultPath ? 'soft' : 'outline'"
+                          icon="i-lucide-folder-open"
+                          :loading="isLoadingVault"
+                          @click="pickVaultFolder"
+                        >
+                          {{ vaultPath ? vaultFolderName : "Открыть папку" }}
+                        </UButton>
+                      </UTooltip>
 
-                  <div class="flex flex-wrap items-center gap-1">
-                    <UButton
-                      size="xs"
-                      color="neutral"
-                      variant="ghost"
-                      icon="i-lucide-paperclip"
-                      aria-label="Прикрепить файл"
-                      @click="triggerFilePicker"
-                    />
-                    <UButton
-                      size="xs"
-                      color="neutral"
-                      variant="ghost"
-                      icon="i-lucide-bold"
-                      :class="{ 'bg-muted': editor?.isActive('bold') }"
-                      @mousedown.prevent="
-                        editor?.chain().focus().toggleBold().run()
-                      "
-                    />
-                    <UButton
-                      size="xs"
-                      color="neutral"
-                      variant="ghost"
-                      icon="i-lucide-italic"
-                      :class="{ 'bg-muted': editor?.isActive('italic') }"
-                      @mousedown.prevent="
-                        editor?.chain().focus().toggleItalic().run()
-                      "
-                    />
-                    <UButton
-                      size="xs"
-                      color="neutral"
-                      variant="ghost"
-                      icon="i-lucide-underline"
-                      :class="{ 'bg-muted': editor?.isActive('underline') }"
-                      @mousedown.prevent="
-                        editor?.chain().focus().toggleUnderline().run()
-                      "
-                    />
-                    <UButton
-                      size="xs"
-                      color="neutral"
-                      variant="ghost"
-                      icon="i-lucide-code"
-                      :class="{ 'bg-muted': editor?.isActive('code') }"
-                      @mousedown.prevent="
-                        editor?.chain().focus().toggleCode().run()
-                      "
-                    />
-                    <UButton
-                      size="xs"
-                      color="neutral"
-                      variant="ghost"
-                      icon="i-lucide-file-code-2"
-                      :class="{ 'bg-muted': editor?.isActive('codeBlock') }"
-                      @mousedown.prevent="
-                        editor?.chain().focus().toggleCodeBlock().run()
-                      "
-                    />
-                    <UButton
-                      size="xs"
-                      color="neutral"
-                      variant="ghost"
-                      icon="i-lucide-list"
-                      :class="{ 'bg-muted': editor?.isActive('bulletList') }"
-                      @mousedown.prevent="
-                        editor?.chain().focus().toggleBulletList().run()
-                      "
-                    />
-                    <UButton
-                      size="xs"
-                      color="neutral"
-                      variant="ghost"
-                      icon="i-lucide-list-ordered"
-                      :class="{ 'bg-muted': editor?.isActive('orderedList') }"
-                      @mousedown.prevent="
-                        editor?.chain().focus().toggleOrderedList().run()
-                      "
-                    />
-                    <UButton
-                      size="xs"
-                      color="neutral"
-                      variant="ghost"
-                      icon="i-lucide-quote"
-                      :class="{ 'bg-muted': editor?.isActive('blockquote') }"
-                      @mousedown.prevent="
-                        editor?.chain().focus().toggleBlockquote().run()
-                      "
-                    />
-                    <UButton
-                      size="xs"
-                      color="neutral"
-                      variant="ghost"
-                      icon="i-lucide-heading-2"
-                      :class="{
-                        'bg-muted': editor?.isActive('heading', { level: 2 }),
-                      }"
-                      @mousedown.prevent="
-                        editor
-                          ?.chain()
-                          .focus()
-                          .toggleHeading({ level: 2 })
-                          .run()
-                      "
-                    />
-                    <UButton
-                      size="xs"
-                      color="neutral"
-                      variant="ghost"
-                      icon="i-lucide-link"
-                      @mousedown.prevent="setLink"
-                    />
-                    <UButton
-                      size="xs"
-                      color="neutral"
-                      variant="ghost"
-                      icon="i-lucide-table"
-                      @mousedown.prevent="insertTable"
-                    />
-                    <UButton
-                      size="xs"
-                      color="neutral"
-                      variant="ghost"
-                      icon="i-lucide-columns-2"
-                      @mousedown.prevent="addColumnAfter"
-                    />
-                    <UButton
-                      size="xs"
-                      color="neutral"
-                      variant="ghost"
-                      icon="i-lucide-rows-2"
-                      @mousedown.prevent="addRowAfter"
-                    />
-                    <UButton
-                      size="xs"
-                      color="neutral"
-                      variant="ghost"
-                      icon="i-lucide-eraser"
-                      @mousedown.prevent="clearFormatting"
-                    />
-                    <input
-                      ref="fileInputRef"
-                      type="file"
-                      class="hidden"
-                      multiple
-                      accept="image/*,.pdf,*/*"
-                      @change="onFileInputChange"
-                    />
+                      <UTooltip v-if="vaultPath" text="Отключить хранилище">
+                        <UButton
+                          size="xs"
+                          color="neutral"
+                          variant="ghost"
+                          icon="i-lucide-x"
+                          aria-label="Отключить хранилище"
+                          @click="clearVault"
+                        />
+                      </UTooltip>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-1">
+                      <UButton
+                        size="xs"
+                        color="neutral"
+                        variant="ghost"
+                        icon="i-lucide-paperclip"
+                        aria-label="Прикрепить файл"
+                        @click="triggerFilePicker"
+                      />
+                      <UButton
+                        size="xs"
+                        color="neutral"
+                        variant="ghost"
+                        icon="i-lucide-bold"
+                        :class="{ 'bg-muted': editor?.isActive('bold') }"
+                        @mousedown.prevent="
+                          editor?.chain().focus().toggleBold().run()
+                        "
+                      />
+                      <UButton
+                        size="xs"
+                        color="neutral"
+                        variant="ghost"
+                        icon="i-lucide-italic"
+                        :class="{ 'bg-muted': editor?.isActive('italic') }"
+                        @mousedown.prevent="
+                          editor?.chain().focus().toggleItalic().run()
+                        "
+                      />
+                      <UButton
+                        size="xs"
+                        color="neutral"
+                        variant="ghost"
+                        icon="i-lucide-underline"
+                        :class="{ 'bg-muted': editor?.isActive('underline') }"
+                        @mousedown.prevent="
+                          editor?.chain().focus().toggleUnderline().run()
+                        "
+                      />
+                      <UButton
+                        size="xs"
+                        color="neutral"
+                        variant="ghost"
+                        icon="i-lucide-code"
+                        :class="{ 'bg-muted': editor?.isActive('code') }"
+                        @mousedown.prevent="
+                          editor?.chain().focus().toggleCode().run()
+                        "
+                      />
+                      <UButton
+                        size="xs"
+                        color="neutral"
+                        variant="ghost"
+                        icon="i-lucide-file-code-2"
+                        :class="{ 'bg-muted': editor?.isActive('codeBlock') }"
+                        @mousedown.prevent="
+                          editor?.chain().focus().toggleCodeBlock().run()
+                        "
+                      />
+                      <UButton
+                        size="xs"
+                        color="neutral"
+                        variant="ghost"
+                        icon="i-lucide-list"
+                        :class="{ 'bg-muted': editor?.isActive('bulletList') }"
+                        @mousedown.prevent="
+                          editor?.chain().focus().toggleBulletList().run()
+                        "
+                      />
+                      <UButton
+                        size="xs"
+                        color="neutral"
+                        variant="ghost"
+                        icon="i-lucide-list-ordered"
+                        :class="{
+                          'bg-muted': editor?.isActive('orderedList'),
+                        }"
+                        @mousedown.prevent="
+                          editor?.chain().focus().toggleOrderedList().run()
+                        "
+                      />
+                      <UButton
+                        size="xs"
+                        color="neutral"
+                        variant="ghost"
+                        icon="i-lucide-quote"
+                        :class="{ 'bg-muted': editor?.isActive('blockquote') }"
+                        @mousedown.prevent="
+                          editor?.chain().focus().toggleBlockquote().run()
+                        "
+                      />
+                      <UButton
+                        size="xs"
+                        color="neutral"
+                        variant="ghost"
+                        icon="i-lucide-heading-2"
+                        :class="{
+                          'bg-muted': editor?.isActive('heading', { level: 2 }),
+                        }"
+                        @mousedown.prevent="
+                          editor
+                            ?.chain()
+                            .focus()
+                            .toggleHeading({ level: 2 })
+                            .run()
+                        "
+                      />
+                      <UButton
+                        size="xs"
+                        color="neutral"
+                        variant="ghost"
+                        icon="i-lucide-link"
+                        @mousedown.prevent="setLink"
+                      />
+                      <UButton
+                        size="xs"
+                        color="neutral"
+                        variant="ghost"
+                        icon="i-lucide-table"
+                        @mousedown.prevent="insertTable"
+                      />
+                      <UButton
+                        size="xs"
+                        color="neutral"
+                        variant="ghost"
+                        icon="i-lucide-columns-2"
+                        @mousedown.prevent="addColumnAfter"
+                      />
+                      <UButton
+                        size="xs"
+                        color="neutral"
+                        variant="ghost"
+                        icon="i-lucide-rows-2"
+                        @mousedown.prevent="addRowAfter"
+                      />
+                      <UButton
+                        size="xs"
+                        color="neutral"
+                        variant="ghost"
+                        icon="i-lucide-table-properties"
+                        @mousedown.prevent="deleteTable"
+                      />
+                      <UButton
+                        size="xs"
+                        color="neutral"
+                        variant="ghost"
+                        icon="i-lucide-eraser"
+                        @mousedown.prevent="clearFormatting"
+                      />
+                      <input
+                        ref="fileInputRef"
+                        type="file"
+                        class="hidden"
+                        multiple
+                        accept="image/*,.pdf,*/*"
+                        @change="onFileInputChange"
+                      />
+                    </div>
                   </div>
                 </div>
               </template>
 
               <div
                 v-if="activeNote"
-                class="space-y-3 overflow-y-auto lg:max-h-[calc(100vh-13rem)]"
+                class="space-y-3 overflow-y-auto lg:max-h-[calc(100vh-16rem)]"
               >
                 <EditorContent :editor="editor" class="prosemirror-editor" />
               </div>
@@ -533,145 +585,130 @@
         </div>
       </template>
 
-      <div v-else-if="leftPanel === 'tasks'" class="lg:min-w-0 lg:flex-1">
+      <div v-else-if="leftPanel === 'library'" class="lg:min-w-0 lg:flex-1">
         <UCard>
           <template #header>
-            <div class="flex items-center justify-between gap-2">
-              <h2 class="text-lg font-semibold">Задачи · Kanban</h2>
-
-              <UButton
-                size="xs"
-                color="primary"
-                variant="soft"
-                icon="i-lucide-columns-3"
-                @click="createKanbanColumn"
-              >
-                Добавить колонку
-              </UButton>
+            <div class="space-y-2">
+              <div class="flex flex-wrap items-center gap-2 text-sm">
+                <UButton
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  @click="libraryCurrentFolderId = null"
+                >
+                  Корень
+                </UButton>
+                <template v-for="crumb in libraryBreadcrumbs" :key="crumb.id">
+                  <UIcon
+                    name="i-lucide-chevron-right"
+                    class="h-3.5 w-3.5 text-muted"
+                  />
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    @click="libraryCurrentFolderId = crumb.id"
+                  >
+                    {{ crumb.name }}
+                  </UButton>
+                </template>
+              </div>
+              <p class="text-xs text-muted">
+                Режим просмотра: редактирование отключено.
+              </p>
             </div>
           </template>
 
-          <div
-            class="overflow-x-auto overflow-y-auto pb-1 lg:max-h-[calc(100vh-13rem)]"
-          >
-            <div class="flex min-h-[65vh] gap-3">
-              <div
-                v-for="column in kanbanColumns"
-                :key="column.id"
-                class="group w-[18rem] shrink-0 rounded-lg border border-default bg-muted/20 p-3"
-                @dragover.prevent
-                @drop="
-                  onColumnDrop(column.id);
-                  onTaskDrop(column.id);
-                "
-                @click="onColumnFreeAreaClick(column.id, $event)"
+          <div class="space-y-4 overflow-y-auto lg:max-h-[calc(100vh-13rem)]">
+            <div
+              class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+            >
+              <button
+                v-for="folder in libraryChildFolders"
+                :key="folder.id"
+                type="button"
+                class="library-folder-card"
+                @click="libraryCurrentFolderId = folder.id"
               >
                 <div
-                  class="mb-3 flex items-start justify-between gap-2"
-                  draggable="true"
-                  @dragstart="onColumnDragStart(column.id)"
-                  @dragend="onColumnDragEnd"
+                  class="library-folder-cover"
+                  :style="folderCoverStyle(folder)"
                 >
-                  <div>
-                    <p class="text-sm font-semibold text-highlighted">
-                      {{ column.name }}
-                    </p>
-                    <p class="text-xs text-muted">
-                      {{ tasksInColumn(column.id).length }} задач
-                    </p>
-                  </div>
-
-                  <div
-                    class="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
-                  >
-                    <UButton
-                      size="xs"
-                      color="neutral"
-                      variant="ghost"
-                      icon="i-lucide-pencil"
-                      aria-label="Переименовать колонку"
-                      @click.stop="renameKanbanColumn(column.id)"
-                    />
-                    <UButton
-                      size="xs"
-                      color="error"
-                      variant="ghost"
-                      icon="i-lucide-trash-2"
-                      aria-label="Удалить колонку"
-                      @click.stop="requestDeleteKanbanColumn(column.id)"
-                    />
-                  </div>
+                  <UIcon
+                    v-if="!folder.coverPath"
+                    name="i-lucide-folder"
+                    class="h-8 w-8 text-primary"
+                  />
                 </div>
+                <p class="truncate text-sm font-medium text-highlighted">
+                  {{ folder.name }}
+                </p>
+                <UButton
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  icon="i-lucide-image-plus"
+                  class="mt-1"
+                  @click.stop="setFolderCover(folder.id)"
+                >
+                  Обложка
+                </UButton>
+              </button>
+            </div>
 
-                <div class="space-y-2">
-                  <div
-                    v-for="task in tasksInColumn(column.id)"
-                    :key="task.id"
-                    draggable="true"
-                    class="group/task cursor-grab rounded-md border border-default bg-default p-3 active:cursor-grabbing"
-                    @dragstart="onTaskDragStart(task.id)"
-                    @dragend="onTaskDragEnd"
-                  >
-                    <div class="flex items-start justify-between gap-2">
-                      <p class="text-sm font-medium text-highlighted">
-                        {{ task.title }}
-                      </p>
+            <div class="space-y-2">
+              <button
+                v-for="note in libraryVisibleNotes"
+                :key="note.id"
+                type="button"
+                class="library-note-card"
+                @click="openLibraryNote(note.id)"
+              >
+                <p class="text-sm font-medium text-highlighted">
+                  {{ noteTitle(note) }}
+                </p>
+                <p class="mt-1 line-clamp-2 text-xs text-muted">
+                  {{ notesMeta[note.id]?.preview || "Пустая заметка" }}
+                </p>
+              </button>
 
-                      <div
-                        class="flex items-center gap-1 opacity-0 transition-opacity group-hover/task:opacity-100"
-                      >
-                        <UButton
-                          size="xs"
-                          color="neutral"
-                          variant="ghost"
-                          icon="i-lucide-pencil"
-                          aria-label="Переименовать задачу"
-                          @click.stop="renameKanbanTask(task.id)"
-                        />
-                        <UButton
-                          size="xs"
-                          color="error"
-                          variant="ghost"
-                          icon="i-lucide-trash-2"
-                          aria-label="Удалить задачу"
-                          @click.stop="requestDeleteKanbanTask(task.id)"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div
-                    v-if="draftTask?.columnId === column.id"
-                    class="rounded-md border border-primary/40 bg-default p-2"
-                  >
-                    <input
-                      :data-draft-input-for="column.id"
-                      v-model="draftTask.title"
-                      class="w-full bg-transparent text-sm outline-none"
-                      placeholder="Новая задача..."
-                      autofocus
-                      @keydown.enter.prevent="commitDraftTask"
-                      @keydown.esc.prevent="cancelDraftTask"
-                      @blur="commitDraftTask"
-                    />
-                  </div>
-                </div>
-              </div>
+              <UAlert
+                v-if="
+                  !libraryChildFolders.length && !libraryVisibleNotes.length
+                "
+                color="neutral"
+                variant="subtle"
+                title="Пусто"
+                description="В этой папке пока нет вложенных папок и заметок."
+              />
             </div>
           </div>
         </UCard>
       </div>
 
-      <div v-else class="lg:min-w-0 lg:flex-1">
-        <UCard>
-          <UAlert
-            color="neutral"
-            variant="subtle"
-            title="Граф в разработке"
-            description="Скоро здесь появится визуальный граф заметок."
-          />
-        </UCard>
+      <div v-else-if="leftPanel === 'tasks'" class="lg:min-w-0 lg:flex-1">
+        <TasksPanel
+          :kanban-columns="kanbanColumns"
+          :tasks-in-column="tasksInColumn"
+          :draft-task="draftTask"
+          :create-kanban-column="createKanbanColumn"
+          :on-column-drop="onColumnDrop"
+          :on-task-drop="onTaskDrop"
+          :on-column-free-area-click="onColumnFreeAreaClick"
+          :on-column-drag-start="onColumnDragStart"
+          :on-column-drag-end="onColumnDragEnd"
+          :rename-kanban-column="renameKanbanColumn"
+          :request-delete-kanban-column="requestDeleteKanbanColumn"
+          :on-task-drag-start="onTaskDragStart"
+          :on-task-drag-end="onTaskDragEnd"
+          :rename-kanban-task="renameKanbanTask"
+          :request-delete-kanban-task="requestDeleteKanbanTask"
+          :commit-draft-task="commitDraftTask"
+          :cancel-draft-task="cancelDraftTask"
+        />
       </div>
+
+      <GraphPanel v-else />
     </div>
 
     <UModal v-model:open="isDeleteModalOpen" title="Удалить заметку?">
@@ -693,6 +730,22 @@
           <UButton color="error" icon="i-lucide-trash-2" @click="confirmDelete">
             Удалить
           </UButton>
+        </div>
+      </template>
+    </UModal>
+
+    <UModal
+      v-model:open="isLibraryNoteModalOpen"
+      :title="libraryActiveNoteTitle"
+      :ui="{ content: 'w-[80vw] sm:max-w-[80vw] h-[80vh]' }"
+    >
+      <template #body>
+        <div class="h-full overflow-y-auto">
+          <EditorContent
+            v-if="libraryPreviewEditor"
+            :editor="libraryPreviewEditor"
+            class="prosemirror-editor"
+          />
         </div>
       </template>
     </UModal>
@@ -832,6 +885,9 @@
 <script setup lang="ts">
 import { EditorContent, useEditor } from "@tiptap/vue-3";
 import { mergeAttributes, Node } from "@tiptap/core";
+import { NodeSelection } from "@tiptap/pm/state";
+import TasksPanel from "~/components/panels/TasksPanel.vue";
+import GraphPanel from "~/components/panels/GraphPanel.vue";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import { Table } from "@tiptap/extension-table";
@@ -843,6 +899,8 @@ import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import StarterKit from "@tiptap/starter-kit";
 import { createLowlight } from "lowlight";
 import { common } from "lowlight";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 type JSONContent = {
   type?: string;
@@ -856,12 +914,18 @@ type Note = {
   folderId: string | null;
   content: JSONContent;
   updatedAt: string;
+  /** filename in vault, e.g. "My Note.md" (legacy field) */
+  filename?: string;
+  /** relative path in vault, e.g. "Work/Ideas/My Note.md" */
+  relativePath?: string;
 };
 
 type Folder = {
   id: string;
   name: string;
   parentId: string | null;
+  coverPath?: string;
+  coverDataUrl?: string;
 };
 
 type KanbanColumn = {
@@ -875,7 +939,7 @@ type KanbanTask = {
   title: string;
 };
 
-type LeftPanel = "notes" | "graph" | "tasks";
+type LeftPanel = "notes" | "graph" | "tasks" | "library";
 
 type UploadKind = "image" | "pdf" | "file";
 
@@ -899,8 +963,84 @@ type VisibleFolder = {
   depth: number;
 };
 
+// Electron API bridge (only available in Electron)
+interface ElectronAPI {
+  getUiSettings: () => Promise<{ theme?: string; accent?: string }>;
+  setUiSettings: (settings: {
+    theme: string;
+    accent: string;
+  }) => Promise<{ theme?: string; accent?: string }>;
+  selectFolder: () => Promise<string | null>;
+  selectFiles: () => Promise<string[]>;
+  openFilePath: (filePath: string) => Promise<{ ok: boolean; error?: string }>;
+  readImageAsDataUrl: (
+    filePath: string,
+  ) => Promise<{ ok: boolean; dataUrl?: string; error?: string }>;
+  importCoverImage: (
+    folderPath: string,
+    sourcePath: string,
+  ) => Promise<{
+    ok: boolean;
+    relativePath?: string;
+    dataUrl?: string;
+    error?: string;
+  }>;
+  readKanbanData: (
+    folderPath: string,
+  ) => Promise<{ columns: unknown[]; tasks: unknown[] }>;
+  saveKanbanData: (
+    folderPath: string,
+    payload: { columns: KanbanColumn[]; tasks: KanbanTask[] },
+  ) => Promise<{ ok: boolean; error?: string }>;
+  readFolderMetadata: (folderPath: string) => Promise<{ folders: unknown[] }>;
+  saveFolderMetadata: (
+    folderPath: string,
+    payload: { folders: Folder[] },
+  ) => Promise<{ ok: boolean; error?: string }>;
+  readMarkdownFiles: (folderPath: string) => Promise<
+    {
+      filename: string;
+      relativePath: string;
+      content: string;
+      updatedAt: string;
+    }[]
+  >;
+  saveMarkdownFile: (
+    folderPath: string,
+    relativePath: string,
+    content: string,
+  ) => Promise<{
+    ok: boolean;
+    filename?: string;
+    relativePath?: string;
+    error?: string;
+  }>;
+  deleteMarkdownFile: (
+    folderPath: string,
+    filename: string,
+  ) => Promise<{ ok: boolean; error?: string }>;
+  renameMarkdownFile: (
+    folderPath: string,
+    oldName: string,
+    newName: string,
+  ) => Promise<{ ok: boolean; filename?: string; error?: string }>;
+  getVaultPath: () => Promise<string | null>;
+  setVaultPath: (folderPath: string) => Promise<string>;
+}
+
+declare global {
+  interface Window {
+    electronAPI?: ElectronAPI;
+  }
+}
+
+const isElectron = () => typeof window !== "undefined" && !!window.electronAPI;
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
 const STORAGE_KEY = "noteforge.notes.v3";
 const ACCENT_STORAGE_KEY = "noteforge.ui.accent.v1";
+const THEME_STORAGE_KEY = "noteforge.ui.theme.v1";
 const NOTES_LIST_WIDTH_STORAGE_KEY = "noteforge.ui.notesListWidth.v2";
 const NOTES_LIST_MIN_WIDTH = 220;
 const NOTES_LIST_MAX_WIDTH = 420;
@@ -908,6 +1048,8 @@ const NOTES_EDITOR_MIN_WIDTH = 360;
 const NOTES_RESIZER_WIDTH = 16;
 const NOTES_PANES_GAP = 8;
 const lowlight = createLowlight(common);
+
+// ── State ─────────────────────────────────────────────────────────────────────
 
 const searchQuery = ref("");
 const notes = ref<Note[]>([]);
@@ -945,10 +1087,56 @@ const notesWorkspaceRef = ref<HTMLElement | null>(null);
 const notesListWidth = ref(260);
 const isResizingNotesPane = ref(false);
 const colorMode = useColorMode();
+const libraryCurrentFolderId = ref<string | null>(null);
+const isLibraryNoteModalOpen = ref(false);
+const libraryPreviewNoteId = ref<string | null>(null);
+
+// Vault state
+const vaultPath = ref<string | null>(null);
+const isLoadingVault = ref(false);
+
+// ── Computed ──────────────────────────────────────────────────────────────────
 
 const isDark = computed(() => colorMode.value === "dark");
 
+const vaultFolderName = computed(() => {
+  if (!vaultPath.value) return "";
+  const parts = vaultPath.value.replace(/\\/g, "/").split("/");
+  return parts[parts.length - 1] || vaultPath.value;
+});
+
+const foldersById = computed(
+  () => new Map(folders.value.map((folder) => [folder.id, folder])),
+);
+
+const libraryBreadcrumbs = computed<Folder[]>(() => {
+  const crumbs: Folder[] = [];
+  let currentId = libraryCurrentFolderId.value;
+
+  while (currentId) {
+    const folder = foldersById.value.get(currentId);
+    if (!folder) break;
+    crumbs.unshift(folder);
+    currentId = folder.parentId;
+  }
+
+  return crumbs;
+});
+
+const libraryChildFolders = computed(() =>
+  folders.value.filter(
+    (folder) => folder.parentId === libraryCurrentFolderId.value,
+  ),
+);
+
+const libraryVisibleNotes = computed(() =>
+  notes.value.filter((note) => note.folderId === libraryCurrentFolderId.value),
+);
+
+// ── Accent ────────────────────────────────────────────────────────────────────
+
 type AccentColor = "blue" | "orange" | "cyan" | "indigo" | "violet" | "green";
+type ThemePreference = "light" | "dark" | "system";
 
 const accentOptions: { label: string; value: AccentColor }[] = [
   { label: "Голубой", value: "blue" },
@@ -958,6 +1146,24 @@ const accentOptions: { label: string; value: AccentColor }[] = [
   { label: "Фиолетовый", value: "violet" },
   { label: "Зелёный", value: "green" },
 ];
+
+const isThemePreference = (value: string): value is ThemePreference =>
+  value === "light" || value === "dark" || value === "system";
+
+const persistUiSettings = async () => {
+  const theme = String(colorMode.preference || "system");
+  const accent = accentColor.value;
+
+  if (isElectron()) {
+    await window.electronAPI!.setUiSettings({ theme, accent });
+    return;
+  }
+
+  localStorage.setItem(THEME_STORAGE_KEY, theme);
+  localStorage.setItem(ACCENT_STORAGE_KEY, accent);
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max);
@@ -1009,6 +1215,8 @@ const generateId = (): string => {
 
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 };
+
+// ── Resize ────────────────────────────────────────────────────────────────────
 
 const resizeNotesPaneFromClientX = (clientX: number) => {
   const workspaceRect = notesWorkspaceRef.value?.getBoundingClientRect();
@@ -1062,6 +1270,8 @@ const startNotesResize = (event: PointerEvent) => {
 const syncNotesListWidthToViewport = () => {
   notesListWidth.value = normalizeNotesListWidth(notesListWidth.value);
 };
+
+// ── Tiptap custom nodes ───────────────────────────────────────────────────────
 
 const NoteImage = Node.create({
   name: "noteImage",
@@ -1138,24 +1348,42 @@ const NoteFile = Node.create({
   draggable: true,
   addAttributes() {
     return {
-      src: { default: null },
+      path: { default: null },
       filename: { default: "Файл" },
       mime: { default: "application/octet-stream" },
+    };
+  },
+  addKeyboardShortcuts() {
+    const removeIfSelected = () => {
+      const { selection } = this.editor.state;
+
+      if (
+        selection instanceof NodeSelection &&
+        selection.node.type.name === this.name
+      ) {
+        return this.editor.commands.deleteSelection();
+      }
+
+      return false;
+    };
+
+    return {
+      Backspace: removeIfSelected,
+      Delete: removeIfSelected,
     };
   },
   parseHTML() {
     return [{ tag: "a[data-note-file='true']" }];
   },
   renderHTML({ HTMLAttributes }) {
-    const src = String(HTMLAttributes.src || "");
+    const filePath = String(HTMLAttributes.path || "");
     const filename = String(HTMLAttributes.filename || "Файл");
     return [
       "a",
       {
         "data-note-file": "true",
-        href: src,
-        target: "_blank",
-        rel: "noopener noreferrer",
+        "data-file-path": filePath,
+        href: "#",
         class: "note-file-link",
         contenteditable: "false",
       },
@@ -1164,6 +1392,171 @@ const NoteFile = Node.create({
     ];
   },
 });
+
+// ── Markdown conversion ───────────────────────────────────────────────────────
+
+/**
+ * Convert Tiptap JSON doc → plain Markdown string.
+ * Supports headings, paragraphs, bold, italic, code, codeBlock,
+ * bulletList, orderedList, blockquote, hardBreak.
+ */
+const docToMarkdown = (node: JSONContent, listDepth = 0): string => {
+  if (!node) return "";
+
+  const children = (node.content || [])
+    .map((child) => docToMarkdown(child, listDepth))
+    .join("");
+
+  switch (node.type) {
+    case "doc":
+      return children.trimEnd() + "\n";
+
+    case "heading": {
+      const level = (node.attrs?.level as number) || 1;
+      const prefix = "#".repeat(level);
+      return `${prefix} ${children}\n\n`;
+    }
+
+    case "paragraph":
+      return children ? `${children}\n\n` : "\n";
+
+    case "text": {
+      let text = node.text || "";
+      const marks = (node as { marks?: { type: string }[] }).marks || [];
+      for (const mark of marks) {
+        if (mark.type === "bold") text = `**${text}**`;
+        else if (mark.type === "italic") text = `*${text}*`;
+        else if (mark.type === "code") text = `\`${text}\``;
+        else if (mark.type === "underline") text = `<u>${text}</u>`;
+        else if (mark.type === "link") {
+          const href =
+            (mark as { type: string; attrs?: { href?: string } }).attrs?.href ||
+            "";
+          text = `[${text}](${href})`;
+        }
+      }
+      return text;
+    }
+
+    case "hardBreak":
+      return "  \n";
+
+    case "codeBlock": {
+      const lang = (node.attrs?.language as string | undefined | null) || "";
+      return `\`\`\`${lang}\n${children}\`\`\`\n\n`;
+    }
+
+    case "blockquote":
+      return (
+        children
+          .split("\n")
+          .map((line) => (line ? `> ${line}` : ">"))
+          .join("\n") + "\n"
+      );
+
+    case "bulletList":
+      return children + "\n";
+
+    case "orderedList":
+      return children + "\n";
+
+    case "listItem": {
+      const indent = "  ".repeat(listDepth);
+      const lines = children.trimEnd().split("\n");
+      const first = `${indent}- ${lines[0] || ""}`;
+      const rest = lines
+        .slice(1)
+        .map((l) => (l ? `${indent}  ${l}` : ""))
+        .join("\n");
+      return rest ? `${first}\n${rest}\n` : `${first}\n`;
+    }
+
+    case "horizontalRule":
+      return "---\n\n";
+
+    default:
+      return children;
+  }
+};
+
+/**
+ * Parse a Markdown string into a minimal Tiptap JSON doc.
+ * Handles: headings (#), paragraphs, fenced code blocks, blank lines.
+ */
+const markdownToDoc = (md: string): JSONContent => {
+  const lines = md.replace(/\r\n/g, "\n").split("\n");
+  const content: JSONContent[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i]!;
+
+    // Fenced code block
+    if (line.startsWith("```")) {
+      const lang = line.slice(3).trim();
+      const codeLines: string[] = [];
+      i++;
+      while (i < lines.length && !lines[i]!.startsWith("```")) {
+        codeLines.push(lines[i]!);
+        i++;
+      }
+      i++; // skip closing ```
+      content.push({
+        type: "codeBlock",
+        attrs: { language: lang || null },
+        content: [{ type: "text", text: codeLines.join("\n") }],
+      });
+      continue;
+    }
+
+    // Heading
+    const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
+    if (headingMatch) {
+      content.push({
+        type: "heading",
+        attrs: { level: headingMatch[1]!.length },
+        content: headingMatch[2]
+          ? [{ type: "text", text: headingMatch[2] }]
+          : [],
+      });
+      i++;
+      continue;
+    }
+
+    // Blank line → skip
+    if (line.trim() === "") {
+      i++;
+      continue;
+    }
+
+    // Paragraph — collect consecutive non-blank, non-heading lines
+    const paraLines: string[] = [];
+    while (
+      i < lines.length &&
+      lines[i]!.trim() !== "" &&
+      !lines[i]!.match(/^#{1,6}\s/) &&
+      !lines[i]!.startsWith("```")
+    ) {
+      paraLines.push(lines[i]!);
+      i++;
+    }
+
+    if (paraLines.length) {
+      content.push({
+        type: "paragraph",
+        content: [{ type: "text", text: paraLines.join("\n") }],
+      });
+    }
+  }
+
+  if (!content.length) {
+    content.push({ type: "paragraph" });
+  }
+
+  return { type: "doc", content };
+};
+
+// ── Note helpers ──────────────────────────────────────────────────────────────
 
 const nowIso = () => new Date().toISOString();
 
@@ -1174,6 +1567,50 @@ const createDefaultKanbanColumns = (): KanbanColumn[] => [
   { id: generateId(), name: "Решено" },
 ];
 
+const normalizeKanbanColumns = (rawColumns: unknown[]): KanbanColumn[] =>
+  rawColumns
+    .map((column) => {
+      if (!column || typeof column !== "object") return null;
+      const c = column as Record<string, unknown>;
+      if (typeof c.id !== "string" || typeof c.name !== "string") return null;
+      return {
+        id: c.id,
+        name: c.name.trim() || "Без названия",
+      } as KanbanColumn;
+    })
+    .filter((column): column is KanbanColumn => column !== null);
+
+const normalizeKanbanTasks = (rawTasks: unknown[]): KanbanTask[] =>
+  rawTasks
+    .map((task) => {
+      if (!task || typeof task !== "object") return null;
+      const t = task as Record<string, unknown>;
+      if (
+        typeof t.id !== "string" ||
+        typeof t.columnId !== "string" ||
+        typeof t.title !== "string"
+      )
+        return null;
+      return {
+        id: t.id,
+        columnId: t.columnId,
+        title: t.title.trim() || "Новая задача",
+      } as KanbanTask;
+    })
+    .filter((task): task is KanbanTask => task !== null);
+
+const applyKanbanState = (rawColumns: unknown[], rawTasks: unknown[]) => {
+  kanbanColumns.value = normalizeKanbanColumns(rawColumns);
+  ensureKanbanColumns();
+
+  const validColumnIds = new Set(
+    kanbanColumns.value.map((column) => column.id),
+  );
+  kanbanTasks.value = normalizeKanbanTasks(rawTasks).filter((task) =>
+    validColumnIds.has(task.columnId),
+  );
+};
+
 const ensureKanbanColumns = () => {
   if (!kanbanColumns.value.length) {
     kanbanColumns.value = createDefaultKanbanColumns();
@@ -1182,9 +1619,13 @@ const ensureKanbanColumns = () => {
 
 const toggleColorMode = () => {
   colorMode.preference = isDark.value ? "light" : "dark";
+  void persistUiSettings();
 };
 
-const setAccentColor = (color: AccentColor) => {
+const setAccentColor = (
+  color: AccentColor,
+  options: { persist?: boolean } = {},
+) => {
   accentColor.value = color;
   updateAppConfig({
     ui: {
@@ -1194,7 +1635,8 @@ const setAccentColor = (color: AccentColor) => {
     },
   });
 
-  localStorage.setItem(ACCENT_STORAGE_KEY, color);
+  if (options.persist === false) return;
+  void persistUiSettings();
 };
 
 const createDocFromText = (text: string): JSONContent => {
@@ -1237,6 +1679,9 @@ const normalizeRawNote = (raw: unknown): Note | null => {
       folderId: typeof note.folderId === "string" ? note.folderId : null,
       updatedAt,
       content: note.content as JSONContent,
+      filename: typeof note.filename === "string" ? note.filename : undefined,
+      relativePath:
+        typeof note.relativePath === "string" ? note.relativePath : undefined,
     };
   }
 
@@ -1307,6 +1752,345 @@ const buildMeta = (doc: JSONContent): NoteMeta => {
   };
 };
 
+// ── Vault / Markdown file operations ─────────────────────────────────────────
+
+const sanitizeVaultPathSegment = (value: string) =>
+  value.replace(/[/\\:*?"<>|]/g, "_").trim();
+
+const noteStoredFilename = (note: Note): string => {
+  if (note.relativePath) {
+    const parts = note.relativePath.split("/");
+    const basename = parts[parts.length - 1];
+    if (basename) return basename;
+  }
+
+  if (note.filename) return note.filename;
+
+  const meta = buildMeta(note.content);
+  const safe = sanitizeVaultPathSegment(meta.title)
+    .replace(/\s+/g, " ")
+    .slice(0, 100);
+
+  return `${safe || note.id}.md`;
+};
+
+const folderPathSegments = (folderId: string | null): string[] => {
+  if (!folderId) return [];
+
+  const byId = new Map(folders.value.map((folder) => [folder.id, folder]));
+  const chain: string[] = [];
+  const visited = new Set<string>();
+
+  let currentId: string | null = folderId;
+  while (currentId) {
+    if (visited.has(currentId)) break;
+    visited.add(currentId);
+
+    const folder = byId.get(currentId);
+    if (!folder) break;
+
+    const safeName = sanitizeVaultPathSegment(folder.name) || "Folder";
+    chain.unshift(safeName);
+    currentId = folder.parentId;
+  }
+
+  return chain;
+};
+
+const noteRelativePath = (note: Note): string => {
+  const filename = noteStoredFilename(note);
+  const segments = folderPathSegments(note.folderId);
+  return [...segments, filename].join("/");
+};
+
+const saveKanbanToVault = async () => {
+  if (!vaultPath.value || !isElectron()) return;
+
+  const columnsPayload: KanbanColumn[] = kanbanColumns.value.map((column) => ({
+    id: column.id,
+    name: column.name,
+  }));
+  const tasksPayload: KanbanTask[] = kanbanTasks.value.map((task) => ({
+    id: task.id,
+    columnId: task.columnId,
+    title: task.title,
+  }));
+
+  await window.electronAPI!.saveKanbanData(vaultPath.value, {
+    columns: columnsPayload,
+    tasks: tasksPayload,
+  });
+};
+
+const saveFoldersToVault = async () => {
+  if (!vaultPath.value || !isElectron()) return;
+
+  const foldersPayload: Folder[] = folders.value.map((folder) => ({
+    id: folder.id,
+    name: folder.name,
+    parentId: folder.parentId,
+    coverPath: folder.coverPath,
+    coverDataUrl: folder.coverDataUrl,
+  }));
+
+  await window.electronAPI!.saveFolderMetadata(vaultPath.value, {
+    folders: foldersPayload,
+  });
+};
+
+const scheduleKanbanSave = () => {
+  if (!vaultPath.value) return;
+  void saveKanbanToVault();
+};
+
+const scheduleFoldersSave = () => {
+  if (!vaultPath.value) return;
+  void saveFoldersToVault();
+};
+
+/**
+ * Save a single note to the vault folder as a .md file.
+ */
+const saveNoteToVault = async (note: Note) => {
+  if (!vaultPath.value || !isElectron()) return;
+
+  const md = docToMarkdown(note.content);
+  const previousRelativePath = note.relativePath || note.filename;
+  const targetRelativePath = noteRelativePath(note);
+
+  const result = await window.electronAPI!.saveMarkdownFile(
+    vaultPath.value,
+    targetRelativePath,
+    md,
+  );
+
+  if (!result.ok) return;
+
+  const finalRelativePath = result.relativePath || targetRelativePath;
+
+  if (previousRelativePath && previousRelativePath !== finalRelativePath) {
+    await window.electronAPI!.deleteMarkdownFile(
+      vaultPath.value,
+      previousRelativePath,
+    );
+  }
+
+  note.relativePath = finalRelativePath;
+  note.filename = result.filename || noteStoredFilename(note);
+};
+
+/**
+ * Delete a note's file from the vault.
+ */
+const deleteNoteFromVault = async (note: Note) => {
+  if (!vaultPath.value || !isElectron()) return;
+
+  const targetPath = note.relativePath || note.filename;
+  if (!targetPath) return;
+
+  await window.electronAPI!.deleteMarkdownFile(vaultPath.value, targetPath);
+};
+
+/**
+ * Load all .md files from the vault folder and replace current notes.
+ */
+const loadVaultFiles = async (folderPath: string) => {
+  if (!isElectron()) return;
+
+  isLoadingVault.value = true;
+  try {
+    const kanbanData = await window.electronAPI!.readKanbanData(folderPath);
+    applyKanbanState(kanbanData.columns, kanbanData.tasks);
+
+    const foldersMetadata =
+      await window.electronAPI!.readFolderMetadata(folderPath);
+    const savedFolders = Array.isArray(foldersMetadata?.folders)
+      ? foldersMetadata.folders
+          .map((folder) => {
+            if (!folder || typeof folder !== "object") return null;
+            const f = folder as Record<string, unknown>;
+            if (typeof f.id !== "string" || typeof f.name !== "string") {
+              return null;
+            }
+
+            return {
+              id: f.id,
+              name: f.name.trim() || "Без названия",
+              parentId: typeof f.parentId === "string" ? f.parentId : null,
+              coverPath:
+                typeof f.coverPath === "string" ? f.coverPath : undefined,
+              coverDataUrl:
+                typeof f.coverDataUrl === "string" ? f.coverDataUrl : undefined,
+            } as Folder;
+          })
+          .filter((folder): folder is Folder => folder !== null)
+      : [];
+
+    const savedFolderIds = new Set(savedFolders.map((folder) => folder.id));
+    const normalizedSavedFolders = savedFolders.map((folder) => ({
+      ...folder,
+      parentId:
+        folder.parentId && savedFolderIds.has(folder.parentId)
+          ? folder.parentId
+          : null,
+    }));
+
+    const savedFoldersById = new Map(
+      normalizedSavedFolders.map((folder) => [folder.id, folder]),
+    );
+    const savedFolderPathById = new Map<string, string>();
+
+    const resolveSavedFolderPath = (folderId: string): string => {
+      const cached = savedFolderPathById.get(folderId);
+      if (cached !== undefined) return cached;
+
+      const visited = new Set<string>();
+      const segments: string[] = [];
+      let currentId: string | null = folderId;
+
+      while (currentId) {
+        if (visited.has(currentId)) break;
+        visited.add(currentId);
+
+        const currentFolder = savedFoldersById.get(currentId);
+        if (!currentFolder) break;
+
+        segments.unshift(
+          sanitizeVaultPathSegment(currentFolder.name) || "Folder",
+        );
+        currentId = currentFolder.parentId;
+      }
+
+      const resolvedPath = segments.join("/");
+      savedFolderPathById.set(folderId, resolvedPath);
+      return resolvedPath;
+    };
+
+    const savedFoldersByPath = new Map<
+      string,
+      Pick<Folder, "coverPath" | "coverDataUrl">
+    >();
+
+    for (const folder of normalizedSavedFolders) {
+      const key = resolveSavedFolderPath(folder.id);
+      if (!key) continue;
+      savedFoldersByPath.set(key, {
+        coverPath: folder.coverPath,
+        coverDataUrl: folder.coverDataUrl,
+      });
+    }
+
+    const files = await window.electronAPI!.readMarkdownFiles(folderPath);
+
+    if (!files.length) {
+      notes.value = [];
+      folders.value = normalizedSavedFolders;
+      activeNoteId.value = null;
+      return;
+    }
+
+    const folderByPath = new Map<string, string>();
+    const loadedFolders: Folder[] = [...normalizedSavedFolders];
+
+    for (const folder of normalizedSavedFolders) {
+      const folderPathKey = resolveSavedFolderPath(folder.id);
+      if (folderPathKey) {
+        folderByPath.set(folderPathKey, folder.id);
+      }
+    }
+
+    const ensureFolderPath = (relativeFolderPath: string): string | null => {
+      const normalized = relativeFolderPath
+        .replace(/\\/g, "/")
+        .replace(/^\/+|\/+$/g, "");
+
+      if (!normalized) return null;
+
+      const parts = normalized.split("/").filter(Boolean);
+      let currentPath = "";
+      let parentId: string | null = null;
+
+      for (const part of parts) {
+        currentPath = currentPath ? `${currentPath}/${part}` : part;
+
+        const existingId = folderByPath.get(currentPath);
+        if (existingId) {
+          parentId = existingId;
+          continue;
+        }
+
+        const id = generateId();
+        const folderPathKey = currentPath;
+        const savedMetadata = savedFoldersByPath.get(folderPathKey);
+        loadedFolders.push({
+          id,
+          name: part,
+          parentId,
+          coverPath: savedMetadata?.coverPath,
+          coverDataUrl: savedMetadata?.coverDataUrl,
+        });
+        folderByPath.set(currentPath, id);
+        parentId = id;
+      }
+
+      return parentId;
+    };
+
+    const loadedNotes: Note[] = files.map((file) => {
+      const normalizedPath = (file.relativePath || file.filename || "")
+        .replace(/\\/g, "/")
+        .replace(/^\/+/, "");
+      const lastSlashIndex = normalizedPath.lastIndexOf("/");
+      const folderPath =
+        lastSlashIndex >= 0 ? normalizedPath.slice(0, lastSlashIndex) : "";
+
+      return {
+        id: generateId(),
+        folderId: ensureFolderPath(folderPath),
+        content: markdownToDoc(file.content),
+        updatedAt: file.updatedAt,
+        filename: file.filename,
+        relativePath: normalizedPath || file.filename,
+      };
+    });
+
+    notes.value = sortByRecent(loadedNotes);
+    folders.value = loadedFolders;
+    activeNoteId.value = notes.value[0]?.id ?? null;
+
+    if (loadedFolders.length) {
+      void saveFoldersToVault();
+    }
+  } finally {
+    isLoadingVault.value = false;
+  }
+};
+
+/**
+ * Open the macOS folder picker and set the vault.
+ */
+const pickVaultFolder = async () => {
+  if (!isElectron()) return;
+
+  const selected = await window.electronAPI!.selectFolder();
+  if (!selected) return;
+
+  vaultPath.value = selected;
+  await loadVaultFiles(selected);
+};
+
+/**
+ * Disconnect the vault (stop syncing to disk).
+ */
+const clearVault = async () => {
+  if (!isElectron()) return;
+
+  vaultPath.value = null;
+  await window.electronAPI!.setVaultPath("");
+};
+
+// ── Storage (localStorage fallback) ──────────────────────────────────────────
+
 const loadNotes = () => {
   const raw = localStorage.getItem(STORAGE_KEY);
 
@@ -1360,16 +2144,10 @@ const loadNotes = () => {
 
     const rawNotes = Array.isArray(parsed.notes) ? parsed.notes : [];
     const rawFolders = Array.isArray(parsed.folders) ? parsed.folders : [];
-    const rawKanbanColumns = Array.isArray(
-      (parsed as { kanbanColumns?: unknown[] }).kanbanColumns,
-    )
-      ? (parsed as { kanbanColumns: unknown[] }).kanbanColumns
-      : [];
-    const rawKanbanTasks = Array.isArray(
-      (parsed as { kanbanTasks?: unknown[] }).kanbanTasks,
-    )
-      ? (parsed as { kanbanTasks: unknown[] }).kanbanTasks
-      : [];
+    const rawKanbanColumns =
+      (parsed as { kanbanColumns?: unknown[] }).kanbanColumns || [];
+    const rawKanbanTasks =
+      (parsed as { kanbanTasks?: unknown[] }).kanbanTasks || [];
 
     const normalized = rawNotes
       .map(normalizeRawNote)
@@ -1384,6 +2162,9 @@ const loadNotes = () => {
           id: f.id,
           name: f.name.trim() || "Без названия",
           parentId: typeof f.parentId === "string" ? f.parentId : null,
+          coverPath: typeof f.coverPath === "string" ? f.coverPath : undefined,
+          coverDataUrl:
+            typeof f.coverDataUrl === "string" ? f.coverDataUrl : undefined,
         } as Folder;
       })
       .filter((folder): folder is Folder => folder !== null);
@@ -1399,48 +2180,13 @@ const loadNotes = () => {
           : null,
     }));
 
-    const normalizedKanbanColumns = rawKanbanColumns
-      .map((column) => {
-        if (!column || typeof column !== "object") return null;
-        const c = column as Record<string, unknown>;
-        if (typeof c.id !== "string" || typeof c.name !== "string") return null;
-        return {
-          id: c.id,
-          name: c.name.trim() || "Без названия",
-        } as KanbanColumn;
-      })
-      .filter((column): column is KanbanColumn => column !== null);
-
-    const normalizedKanbanTasks = rawKanbanTasks
-      .map((task) => {
-        if (!task || typeof task !== "object") return null;
-        const t = task as Record<string, unknown>;
-        if (
-          typeof t.id !== "string" ||
-          typeof t.columnId !== "string" ||
-          typeof t.title !== "string"
-        )
-          return null;
-        return {
-          id: t.id,
-          columnId: t.columnId,
-          title: t.title.trim() || "Новая задача",
-        } as KanbanTask;
-      })
-      .filter((task): task is KanbanTask => task !== null);
-
     if (!normalized.length) {
       throw new Error("Invalid notes payload");
     }
 
     notes.value = sortByRecent(normalized);
     folders.value = sanitizedFolders;
-    kanbanColumns.value = normalizedKanbanColumns;
-    kanbanTasks.value = normalizedKanbanTasks;
-    ensureKanbanColumns();
-    kanbanTasks.value = kanbanTasks.value.filter((task) =>
-      kanbanColumns.value.some((column) => column.id === task.columnId),
-    );
+    applyKanbanState(rawKanbanColumns, rawKanbanTasks);
     activeNoteId.value = notes.value[0]?.id ?? null;
   } catch {
     const first = createEmptyNote();
@@ -1463,6 +2209,8 @@ const persistNotes = () => {
     }),
   );
 };
+
+// ── Kanban ────────────────────────────────────────────────────────────────────
 
 const tasksInColumn = (columnId: string) =>
   kanbanTasks.value.filter((task) => task.columnId === columnId);
@@ -1739,6 +2487,8 @@ const onTaskDrop = (targetColumnId: string) => {
   draggedTaskId.value = null;
 };
 
+// ── Notes ─────────────────────────────────────────────────────────────────────
+
 const activeNote = computed(() =>
   notes.value.find((note) => note.id === activeNoteId.value),
 );
@@ -1749,10 +2499,17 @@ const notesMeta = computed<Record<string, NoteMeta>>(() =>
   ),
 );
 
+const libraryActiveNote = computed(
+  () =>
+    notes.value.find((note) => note.id === libraryPreviewNoteId.value) || null,
+);
+
+const libraryActiveNoteTitle = computed(() =>
+  libraryActiveNote.value ? noteTitle(libraryActiveNote.value) : "Просмотр",
+);
+
 const noteTitle = (note: Note) =>
   notesMeta.value[note.id]?.title || "Без названия";
-const notePreview = (note: Note) =>
-  notesMeta.value[note.id]?.preview || "Пустая заметка";
 
 const filteredNotes = computed(() => {
   const q = searchQuery.value.trim().toLowerCase();
@@ -1834,6 +2591,11 @@ const createNote = (folderId: string | null = null) => {
 
   notes.value.unshift(note);
   activeNoteId.value = note.id;
+
+  // Save to vault immediately
+  if (vaultPath.value) {
+    void saveNoteToVault(note);
+  }
 };
 
 const createFolder = async (parentId: string | null = null) => {
@@ -1852,7 +2614,13 @@ const createFolder = async (parentId: string | null = null) => {
   if (!name) return;
 
   const id = generateId();
-  folders.value.unshift({ id, name, parentId });
+  folders.value.unshift({
+    id,
+    name,
+    parentId,
+    coverPath: undefined,
+    coverDataUrl: undefined,
+  });
   collapsedFolders.value = collapsedFolders.value.filter(
     (folderId) => folderId !== id,
   );
@@ -1935,11 +2703,108 @@ const renameFolder = async (folderId: string) => {
   targetFolder.name = nextName;
 };
 
-const deleteActiveNote = () => {
+const setFolderCover = async (folderId: string) => {
+  const folder = folders.value.find((item) => item.id === folderId);
+  if (!folder) return;
+
+  if (!isElectron()) return;
+
+  const selected = await window.electronAPI!.selectFiles();
+  if (!selected.length) return;
+
+  const selectedPath = selected[0];
+  if (!selectedPath) return;
+
+  if (vaultPath.value) {
+    const imported = await window.electronAPI!.importCoverImage(
+      vaultPath.value,
+      selectedPath,
+    );
+
+    if (!imported.ok || !imported.relativePath) return;
+
+    folder.coverPath = imported.relativePath;
+    if (imported.dataUrl) {
+      folder.coverDataUrl = imported.dataUrl;
+    }
+
+    void saveFoldersToVault();
+    return;
+  }
+
+  const previewResult =
+    await window.electronAPI!.readImageAsDataUrl(selectedPath);
+
+  folder.coverPath = selectedPath;
+  if (previewResult.ok && previewResult.dataUrl) {
+    folder.coverDataUrl = previewResult.dataUrl;
+  }
+
+  if (vaultPath.value) {
+    void saveFoldersToVault();
+  }
+};
+
+const toFileUrl = (filePath: string) => {
+  const normalized = filePath.replace(/\\/g, "/");
+  return encodeURI(`file://${normalized}`);
+};
+
+const isAbsoluteFilePath = (value: string) =>
+  value.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(value);
+
+const absolutePathFromVault = (basePath: string, relativePath: string) => {
+  const cleanBase = basePath.replace(/[\\/]+$/, "");
+  const cleanRelative = relativePath.replace(/^[\\/]+/, "");
+  return `${cleanBase}/${cleanRelative}`;
+};
+
+const resolveCoverImageUrl = (folder: Folder): string => {
+  if (folder.coverDataUrl) return folder.coverDataUrl;
+  if (!folder.coverPath) return "";
+
+  if (isAbsoluteFilePath(folder.coverPath)) {
+    return toFileUrl(folder.coverPath);
+  }
+
+  if (!vaultPath.value) return "";
+  return toFileUrl(absolutePathFromVault(vaultPath.value, folder.coverPath));
+};
+
+const folderCoverStyle = (folder: Folder): Record<string, string> => {
+  const imageUrl = resolveCoverImageUrl(folder);
+  if (!imageUrl) return {};
+
+  return {
+    backgroundImage: `url("${imageUrl}")`,
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+  };
+};
+
+const openLibraryNote = (noteId: string) => {
+  const note = notes.value.find((item) => item.id === noteId);
+  const previewEditor = libraryPreviewEditor.value;
+  if (!note || !previewEditor) return;
+
+  libraryPreviewNoteId.value = noteId;
+  previewEditor.commands.setContent(note.content, {
+    emitUpdate: false,
+  });
+  isLibraryNoteModalOpen.value = true;
+};
+
+const deleteActiveNote = async () => {
   if (!activeNote.value) return;
 
-  const id = activeNote.value.id;
-  notes.value = notes.value.filter((note) => note.id !== id);
+  const note = activeNote.value;
+
+  // Delete from vault
+  if (vaultPath.value) {
+    await deleteNoteFromVault(note);
+  }
+
+  notes.value = notes.value.filter((n) => n.id !== note.id);
 
   if (!notes.value.length) {
     const fallback = createEmptyNote();
@@ -1957,9 +2822,11 @@ const requestDeleteNote = (noteId: string) => {
 };
 
 const confirmDelete = () => {
-  deleteActiveNote();
+  void deleteActiveNote();
   isDeleteModalOpen.value = false;
 };
+
+// ── Editor ────────────────────────────────────────────────────────────────────
 
 const editor = useEditor({
   content: createEmptyDoc(),
@@ -1997,6 +2864,16 @@ const editor = useEditor({
         return true;
       },
     },
+    handleClickOn: (_view, _pos, node, _nodePos, event) => {
+      if (node.type.name !== "noteFile") return false;
+
+      const filePath = String((node.attrs as { path?: unknown }).path || "");
+      if (!filePath || !isElectron()) return false;
+
+      event.preventDefault();
+      void window.electronAPI!.openFilePath(filePath);
+      return true;
+    },
     attributes: {
       class: "note-editor focus:outline-none",
     },
@@ -2005,8 +2882,59 @@ const editor = useEditor({
     if (!activeNote.value || isApplyingContent.value) return;
     activeNote.value.content = editor.getJSON();
     touchActiveNote();
+
+    // Debounced vault save
+    scheduleVaultSave(activeNote.value);
   },
 });
+
+const libraryPreviewEditor = useEditor({
+  content: createEmptyDoc(),
+  editable: false,
+  extensions: [
+    NoteImage,
+    NotePdf,
+    NoteFile,
+    StarterKit.configure({ codeBlock: false }),
+    Underline,
+    Link.configure({
+      openOnClick: true,
+      defaultProtocol: "https",
+      autolink: true,
+    }),
+    CodeBlockLowlight.configure({ lowlight }),
+    Table.configure({ resizable: false }),
+    TableRow,
+    TableHeader,
+    TableCell,
+  ],
+  editorProps: {
+    handleClickOn: (_view, _pos, node, _nodePos, event) => {
+      if (node.type.name !== "noteFile") return false;
+
+      const filePath = String((node.attrs as { path?: unknown }).path || "");
+      if (!filePath || !isElectron()) return false;
+
+      event.preventDefault();
+      void window.electronAPI!.openFilePath(filePath);
+      return true;
+    },
+    attributes: {
+      class: "note-editor focus:outline-none",
+    },
+  },
+});
+
+// Debounce vault saves to avoid hammering the filesystem on every keystroke
+let vaultSaveTimer: ReturnType<typeof setTimeout> | null = null;
+const scheduleVaultSave = (note: Note) => {
+  if (!vaultPath.value) return;
+  if (vaultSaveTimer) clearTimeout(vaultSaveTimer);
+  vaultSaveTimer = setTimeout(() => {
+    void saveNoteToVault(note);
+    vaultSaveTimer = null;
+  }, 800);
+};
 
 watch(
   activeNote,
@@ -2018,6 +2946,8 @@ watch(
   },
   { immediate: true },
 );
+
+// ── Editor actions ────────────────────────────────────────────────────────────
 
 const setLink = async () => {
   if (!editor.value) return;
@@ -2048,68 +2978,51 @@ const clearFormatting = () => {
 };
 
 const triggerFilePicker = () => {
-  fileInputRef.value?.click();
-};
-
-const fileToDataUrl = (file: File) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(new Error("Не удалось прочитать файл"));
-    reader.readAsDataURL(file);
-  });
-
-const fileKind = (file: File): UploadKind => {
-  const mime = file.type.toLowerCase();
-  const name = file.name.toLowerCase();
-
-  if (mime.startsWith("image/") || /\.(png|jpe?g|gif|webp|svg)$/.test(name)) {
-    return "image";
+  if (!isElectron()) {
+    fileInputRef.value?.click();
+    return;
   }
 
-  if (mime === "application/pdf" || name.endsWith(".pdf")) {
-    return "pdf";
-  }
-
-  return "file";
+  void (async () => {
+    const selectedPaths = await window.electronAPI!.selectFiles();
+    if (!selectedPaths.length) return;
+    await handleFilesFromPaths(selectedPaths);
+  })();
 };
 
-const insertUploadedFile = async (file: File) => {
+const basenameFromPath = (filePath: string) => {
+  const normalized = filePath.replace(/\\/g, "/");
+  const parts = normalized.split("/");
+  return parts[parts.length - 1] || "Файл";
+};
+
+const mimeByExtension: Record<string, string> = {
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  xls: "application/vnd.ms-excel",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  doc: "application/msword",
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  ppt: "application/vnd.ms-powerpoint",
+  pdf: "application/pdf",
+};
+
+const mimeFromFileName = (fileName: string) => {
+  const ext = fileName.split(".").pop()?.toLowerCase() || "";
+  return mimeByExtension[ext] || "application/octet-stream";
+};
+
+const insertLinkedFile = async (
+  filePath: string,
+  fileName?: string,
+  mime?: string,
+) => {
   if (!editor.value) return;
 
-  const src = await fileToDataUrl(file);
-  const kind = fileKind(file);
+  const normalizedPath = filePath.trim();
+  if (!normalizedPath) return;
 
-  if (kind === "image") {
-    editor.value
-      .chain()
-      .focus()
-      .insertContent({
-        type: "noteImage",
-        attrs: {
-          src,
-          alt: file.name,
-          title: file.name,
-        },
-      })
-      .run();
-    return;
-  }
-
-  if (kind === "pdf") {
-    editor.value
-      .chain()
-      .focus()
-      .insertContent({
-        type: "notePdf",
-        attrs: {
-          src,
-          filename: file.name,
-        },
-      })
-      .run();
-    return;
-  }
+  const resolvedName = fileName || basenameFromPath(normalizedPath);
+  const resolvedMime = mime || mimeFromFileName(resolvedName);
 
   editor.value
     .chain()
@@ -2117,9 +3030,9 @@ const insertUploadedFile = async (file: File) => {
     .insertContent({
       type: "noteFile",
       attrs: {
-        src,
-        filename: file.name,
-        mime: file.type || "application/octet-stream",
+        path: normalizedPath,
+        filename: resolvedName,
+        mime: resolvedMime,
       },
     })
     .run();
@@ -2127,7 +3040,22 @@ const insertUploadedFile = async (file: File) => {
 
 const handleFilesUpload = async (files: File[]) => {
   for (const file of files) {
-    await insertUploadedFile(file);
+    const filePath = String(
+      (file as File & { path?: string }).path || "",
+    ).trim();
+    if (!filePath) continue;
+
+    await insertLinkedFile(
+      filePath,
+      file.name || basenameFromPath(filePath),
+      file.type || undefined,
+    );
+  }
+};
+
+const handleFilesFromPaths = async (filePaths: string[]) => {
+  for (const filePath of filePaths) {
+    await insertLinkedFile(filePath);
   }
 };
 
@@ -2136,7 +3064,14 @@ const onFileInputChange = async (event: Event) => {
   const fileList = input?.files;
   if (!fileList?.length) return;
 
-  await handleFilesUpload(Array.from(fileList));
+  const files = Array.from(fileList);
+  const paths = files
+    .map((file) => String((file as File & { path?: string }).path || "").trim())
+    .filter(Boolean);
+
+  if (paths.length) {
+    await handleFilesFromPaths(paths);
+  }
 
   if (input) {
     input.value = "";
@@ -2159,25 +3094,45 @@ const addRowAfter = () => {
   editor.value?.chain().focus().addRowAfter().run();
 };
 
-const formatDate = (iso: string) =>
-  new Intl.DateTimeFormat("ru-RU", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(new Date(iso));
+const deleteTable = () => {
+  editor.value?.chain().focus().deleteTable().run();
+};
 
-onMounted(() => {
-  const savedAccent = localStorage.getItem(ACCENT_STORAGE_KEY);
+// ── Lifecycle ─────────────────────────────────────────────────────────────────
+
+onMounted(async () => {
   const isAccentColor = (value: string): value is AccentColor =>
     accentOptions.some((option) => option.value === value);
 
-  if (savedAccent === "sky") {
-    setAccentColor("orange");
-    loadNotes();
-    return;
-  }
+  if (isElectron()) {
+    const uiSettings = await window.electronAPI!.getUiSettings();
+    const savedTheme =
+      typeof uiSettings?.theme === "string" ? uiSettings.theme : "";
+    const savedAccent =
+      typeof uiSettings?.accent === "string" ? uiSettings.accent : "";
 
-  if (savedAccent && isAccentColor(savedAccent)) {
-    setAccentColor(savedAccent);
+    if (savedTheme && isThemePreference(savedTheme)) {
+      colorMode.preference = savedTheme;
+    }
+
+    if (savedAccent === "sky") {
+      setAccentColor("orange", { persist: false });
+    } else if (savedAccent && isAccentColor(savedAccent)) {
+      setAccentColor(savedAccent, { persist: false });
+    }
+  } else {
+    const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+    const savedAccent = localStorage.getItem(ACCENT_STORAGE_KEY);
+
+    if (savedTheme && isThemePreference(savedTheme)) {
+      colorMode.preference = savedTheme;
+    }
+
+    if (savedAccent === "sky") {
+      setAccentColor("orange", { persist: false });
+    } else if (savedAccent && isAccentColor(savedAccent)) {
+      setAccentColor(savedAccent, { persist: false });
+    }
   }
 
   const savedNotesListWidth = Number(
@@ -2194,23 +3149,73 @@ onMounted(() => {
   });
 
   window.addEventListener("resize", syncNotesListWidthToViewport);
+
+  // Restore vault path from Electron store
+  if (isElectron()) {
+    const savedVault = await window.electronAPI!.getVaultPath();
+    if (savedVault) {
+      vaultPath.value = savedVault;
+      await loadVaultFiles(savedVault);
+    }
+  }
 });
 
 onBeforeUnmount(() => {
   stopNotesResize();
   window.removeEventListener("resize", syncNotesListWidthToViewport);
+
+  if (vaultSaveTimer) {
+    clearTimeout(vaultSaveTimer);
+    vaultSaveTimer = null;
+    if (activeNote.value) {
+      void saveNoteToVault(activeNote.value);
+    }
+  }
+
+  void saveKanbanToVault();
+  void saveFoldersToVault();
+
   editor.value?.destroy();
+  libraryPreviewEditor.value?.destroy();
 });
 
 watch(notes, persistNotes, { deep: true });
-watch(folders, persistNotes, { deep: true });
-watch(kanbanColumns, persistNotes, { deep: true });
-watch(kanbanTasks, persistNotes, { deep: true });
+watch(
+  folders,
+  () => {
+    persistNotes();
+    scheduleFoldersSave();
+  },
+  { deep: true },
+);
+watch(
+  kanbanColumns,
+  () => {
+    persistNotes();
+    scheduleKanbanSave();
+  },
+  { deep: true },
+);
+watch(
+  kanbanTasks,
+  () => {
+    persistNotes();
+    scheduleKanbanSave();
+  },
+  { deep: true },
+);
 watch(isTextInputModalOpen, (open) => {
   if (!open) return;
 
   nextTick(() => {
     textInputRef.value?.focus();
   });
+});
+
+watch(isLibraryNoteModalOpen, (open) => {
+  if (open) return;
+  if (libraryPreviewNoteId) {
+    libraryPreviewNoteId.value = null;
+  }
 });
 </script>
