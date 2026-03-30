@@ -71,7 +71,7 @@
         </div>
       </div>
 
-      <template v-if="leftPanel === 'notes'">
+      <div v-show="leftPanel === 'notes'" class="min-w-0 flex-1">
         <div
           ref="notesWorkspaceRef"
           class="min-w-0 flex-1 flex flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-2"
@@ -763,9 +763,9 @@
             </UCard>
           </div>
         </div>
-      </template>
+      </div>
 
-      <div v-else-if="leftPanel === 'library'" class="lg:min-w-0 lg:flex-1">
+      <div v-show="leftPanel === 'library'" class="lg:min-w-0 lg:flex-1">
         <UCard>
           <template #header>
             <div class="space-y-2">
@@ -866,7 +866,7 @@
         </UCard>
       </div>
 
-      <div v-else-if="leftPanel === 'tasks'" class="lg:min-w-0 lg:flex-1">
+      <div v-show="leftPanel === 'tasks'" class="lg:min-w-0 lg:flex-1">
         <TasksPanel
           :kanban-columns="kanbanColumns"
           :tasks-in-column="tasksInColumn"
@@ -888,7 +888,9 @@
         />
       </div>
 
-      <GraphPanel v-else />
+      <div v-show="leftPanel === 'graph'" class="lg:min-w-0 lg:flex-1">
+        <GraphPanel />
+      </div>
     </div>
 
     <div
@@ -1679,15 +1681,18 @@ import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import StarterKit from "@tiptap/starter-kit";
 import { createLowlight } from "lowlight";
 import { common } from "lowlight";
+import {
+  buildMeta,
+  createDocFromText,
+  createEmptyDoc,
+  createEmptyKanbanTaskDescription,
+  docToMarkdown,
+  markdownToDoc,
+  type JSONContent,
+  type NoteMeta,
+} from "~/utils/note-doc";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-
-type JSONContent = {
-  type?: string;
-  text?: string;
-  attrs?: Record<string, unknown>;
-  content?: JSONContent[];
-};
 
 type Note = {
   id: string;
@@ -1741,8 +1746,6 @@ type HotkeyAction =
   | "blockquote"
   | "clearFormatting";
 
-type UploadKind = "image" | "pdf" | "file";
-
 type TextInputModalOptions = {
   title: string;
   description?: string;
@@ -1750,12 +1753,6 @@ type TextInputModalOptions = {
   initialValue?: string;
   confirmLabel?: string;
   confirmColor?: "primary" | "neutral";
-};
-
-type NoteMeta = {
-  plain: string;
-  title: string;
-  preview: string;
 };
 
 type VisibleFolder = {
@@ -1826,11 +1823,6 @@ interface ElectronAPI {
     folderPath: string,
     filename: string,
   ) => Promise<{ ok: boolean; error?: string }>;
-  renameMarkdownFile: (
-    folderPath: string,
-    oldName: string,
-    newName: string,
-  ) => Promise<{ ok: boolean; filename?: string; error?: string }>;
   getVaultPath: () => Promise<string | null>;
   setVaultPath: (folderPath: string) => Promise<string>;
 }
@@ -2465,169 +2457,6 @@ const NoteFile = Node.create({
   },
 });
 
-// ── Markdown conversion ───────────────────────────────────────────────────────
-
-/**
- * Convert Tiptap JSON doc → plain Markdown string.
- * Supports headings, paragraphs, bold, italic, code, codeBlock,
- * bulletList, orderedList, blockquote, hardBreak.
- */
-const docToMarkdown = (node: JSONContent, listDepth = 0): string => {
-  if (!node) return "";
-
-  const children = (node.content || [])
-    .map((child) => docToMarkdown(child, listDepth))
-    .join("");
-
-  switch (node.type) {
-    case "doc":
-      return children.trimEnd() + "\n";
-
-    case "heading": {
-      const level = (node.attrs?.level as number) || 1;
-      const prefix = "#".repeat(level);
-      return `${prefix} ${children}\n\n`;
-    }
-
-    case "paragraph":
-      return children ? `${children}\n\n` : "\n";
-
-    case "text": {
-      let text = node.text || "";
-      const marks = (node as { marks?: { type: string }[] }).marks || [];
-      for (const mark of marks) {
-        if (mark.type === "bold") text = `**${text}**`;
-        else if (mark.type === "italic") text = `*${text}*`;
-        else if (mark.type === "code") text = `\`${text}\``;
-        else if (mark.type === "underline") text = `<u>${text}</u>`;
-        else if (mark.type === "link") {
-          const href =
-            (mark as { type: string; attrs?: { href?: string } }).attrs?.href ||
-            "";
-          text = `[${text}](${href})`;
-        }
-      }
-      return text;
-    }
-
-    case "hardBreak":
-      return "  \n";
-
-    case "codeBlock": {
-      const lang = (node.attrs?.language as string | undefined | null) || "";
-      return `\`\`\`${lang}\n${children}\`\`\`\n\n`;
-    }
-
-    case "blockquote":
-      return (
-        children
-          .split("\n")
-          .map((line) => (line ? `> ${line}` : ">"))
-          .join("\n") + "\n"
-      );
-
-    case "bulletList":
-      return children + "\n";
-
-    case "orderedList":
-      return children + "\n";
-
-    case "listItem": {
-      const indent = "  ".repeat(listDepth);
-      const lines = children.trimEnd().split("\n");
-      const first = `${indent}- ${lines[0] || ""}`;
-      const rest = lines
-        .slice(1)
-        .map((l) => (l ? `${indent}  ${l}` : ""))
-        .join("\n");
-      return rest ? `${first}\n${rest}\n` : `${first}\n`;
-    }
-
-    case "horizontalRule":
-      return "---\n\n";
-
-    default:
-      return children;
-  }
-};
-
-/**
- * Parse a Markdown string into a minimal Tiptap JSON doc.
- * Handles: headings (#), paragraphs, fenced code blocks, blank lines.
- */
-const markdownToDoc = (md: string): JSONContent => {
-  const lines = md.replace(/\r\n/g, "\n").split("\n");
-  const content: JSONContent[] = [];
-  let i = 0;
-
-  while (i < lines.length) {
-    const line = lines[i]!;
-
-    // Fenced code block
-    if (line.startsWith("```")) {
-      const lang = line.slice(3).trim();
-      const codeLines: string[] = [];
-      i++;
-      while (i < lines.length && !lines[i]!.startsWith("```")) {
-        codeLines.push(lines[i]!);
-        i++;
-      }
-      i++; // skip closing ```
-      content.push({
-        type: "codeBlock",
-        attrs: { language: lang || null },
-        content: [{ type: "text", text: codeLines.join("\n") }],
-      });
-      continue;
-    }
-
-    // Heading
-    const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
-    if (headingMatch) {
-      content.push({
-        type: "heading",
-        attrs: { level: headingMatch[1]!.length },
-        content: headingMatch[2]
-          ? [{ type: "text", text: headingMatch[2] }]
-          : [],
-      });
-      i++;
-      continue;
-    }
-
-    // Blank line → skip
-    if (line.trim() === "") {
-      i++;
-      continue;
-    }
-
-    // Paragraph — collect consecutive non-blank, non-heading lines
-    const paraLines: string[] = [];
-    while (
-      i < lines.length &&
-      lines[i]!.trim() !== "" &&
-      !lines[i]!.match(/^#{1,6}\s/) &&
-      !lines[i]!.startsWith("```")
-    ) {
-      paraLines.push(lines[i]!);
-      i++;
-    }
-
-    if (paraLines.length) {
-      content.push({
-        type: "paragraph",
-        content: [{ type: "text", text: paraLines.join("\n") }],
-      });
-    }
-  }
-
-  if (!content.length) {
-    content.push({ type: "paragraph" });
-  }
-
-  return { type: "doc", content };
-};
-
 // ── Note helpers ──────────────────────────────────────────────────────────────
 
 const nowIso = () => new Date().toISOString();
@@ -2738,35 +2567,6 @@ const setAccentColor = (
   void persistUiSettings();
 };
 
-const createDocFromText = (text: string): JSONContent => {
-  const normalized = text.replace(/\r\n/g, "\n").trim();
-  const lines = normalized ? normalized.split("\n") : [];
-  const firstLine = lines[0]?.trim() || "Новая заметка";
-  const body = lines.slice(1).join("\n").trim();
-
-  return {
-    type: "doc",
-    content: [
-      {
-        type: "heading",
-        attrs: { level: 1 },
-        content: [{ type: "text", text: firstLine }],
-      },
-      {
-        type: "paragraph",
-        content: body ? [{ type: "text", text: body }] : undefined,
-      },
-    ],
-  };
-};
-
-const createEmptyDoc = (): JSONContent => createDocFromText("Новая заметка");
-
-const createEmptyKanbanTaskDescription = (): JSONContent => ({
-  type: "doc",
-  content: [{ type: "paragraph" }],
-});
-
 const normalizeRawNote = (raw: unknown): Note | null => {
   if (!raw || typeof raw !== "object") return null;
 
@@ -2812,49 +2612,6 @@ const sortByRecent = (items: Note[]) =>
   [...items].sort(
     (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
   );
-
-const readText = (node: JSONContent | undefined): string => {
-  if (!node) return "";
-
-  if (node.type === "text") return node.text || "";
-  if (node.type === "hardBreak") return "\n";
-
-  const children = (node.content || []).map(readText).join("");
-
-  if (node.type === "tableCell" || node.type === "tableHeader") {
-    return `${children}\t`;
-  }
-
-  if (
-    node.type === "paragraph" ||
-    node.type === "heading" ||
-    node.type === "blockquote" ||
-    node.type === "codeBlock" ||
-    node.type === "listItem" ||
-    node.type === "tableRow"
-  ) {
-    return `${children}\n`;
-  }
-
-  return children;
-};
-
-const buildMeta = (doc: JSONContent): NoteMeta => {
-  const plain = readText(doc)
-    .replace(/\t+/g, " ")
-    .replace(/\n{2,}/g, "\n")
-    .trim();
-  const lines = plain
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  return {
-    plain,
-    title: lines[0] || "Без названия",
-    preview: lines.slice(1).join(" ") || "Пустая заметка",
-  };
-};
 
 // ── Vault / Markdown file operations ─────────────────────────────────────────
 
@@ -2907,46 +2664,63 @@ const noteRelativePath = (note: Note): string => {
   return [...segments, filename].join("/");
 };
 
-const saveKanbanToVault = async () => {
-  if (!vaultPath.value || !isElectron()) return;
-
+const buildKanbanPayload = (): {
+  columns: KanbanColumn[];
+  tasks: KanbanTask[];
+} => {
   const columnsPayload: KanbanColumn[] = kanbanColumns.value.map((column) => ({
     id: column.id,
     name: column.name,
   }));
+
   const tasksPayload: KanbanTask[] = kanbanTasks.value.map((task) => ({
     id: task.id,
     columnId: task.columnId,
     title: task.title,
-    description: task.description,
-    comments: task.comments,
+    // Важно: перед IPC отправляем только plain JSON, без Vue Proxy
+    description: JSON.parse(
+      JSON.stringify(task.description || {}),
+    ) as JSONContent,
+    comments: task.comments.map((comment) => ({
+      id: comment.id,
+      text: comment.text,
+      createdAt: comment.createdAt,
+    })),
   }));
 
-  await window.electronAPI!.saveKanbanData(vaultPath.value, {
-    columns: columnsPayload,
-    tasks: tasksPayload,
-  });
+  return { columns: columnsPayload, tasks: tasksPayload };
+};
+
+const saveKanbanToVault = async () => {
+  if (!vaultPath.value || !isElectron()) return;
+
+  const payload = buildKanbanPayload();
+  const result = await window.electronAPI!.saveKanbanData(
+    vaultPath.value,
+    payload,
+  );
+  if (!result?.ok) {
+    console.error(
+      "Не удалось сохранить kanban:",
+      result?.error || "unknown error",
+    );
+  }
 };
 
 const saveKanbanToVaultSync = () => {
   if (!vaultPath.value || !isElectron()) return;
 
-  const columnsPayload: KanbanColumn[] = kanbanColumns.value.map((column) => ({
-    id: column.id,
-    name: column.name,
-  }));
-  const tasksPayload: KanbanTask[] = kanbanTasks.value.map((task) => ({
-    id: task.id,
-    columnId: task.columnId,
-    title: task.title,
-    description: task.description,
-    comments: task.comments,
-  }));
-
-  window.electronAPI!.saveKanbanDataSync(vaultPath.value, {
-    columns: columnsPayload,
-    tasks: tasksPayload,
-  });
+  const payload = buildKanbanPayload();
+  const result = window.electronAPI!.saveKanbanDataSync(
+    vaultPath.value,
+    payload,
+  );
+  if (!result?.ok) {
+    console.error(
+      "Не удалось синхронно сохранить kanban:",
+      result?.error || "unknown error",
+    );
+  }
 };
 
 let kanbanSaveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -4689,9 +4463,7 @@ watch(isTextInputModalOpen, (open) => {
 
 watch(isLibraryNoteModalOpen, (open) => {
   if (open) return;
-  if (libraryPreviewNoteId) {
-    libraryPreviewNoteId.value = null;
-  }
+  libraryPreviewNoteId.value = null;
 });
 
 watch(isSpellcheckEnabled, (enabled) => {
