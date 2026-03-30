@@ -74,6 +74,8 @@
               :key="task.id"
               draggable="true"
               class="group/task cursor-grab rounded-md border border-default bg-default p-3 active:cursor-grabbing"
+              @pointerdown.stop
+              @click.stop="openKanbanTask(task.id)"
               @dragstart="onTaskDragStart(task.id)"
               @dragend="onTaskDragEnd"
             >
@@ -85,14 +87,6 @@
                 <div
                   class="flex items-center gap-1 opacity-0 transition-opacity group-hover/task:opacity-100"
                 >
-                  <UButton
-                    size="xs"
-                    color="neutral"
-                    variant="ghost"
-                    icon="i-lucide-pencil"
-                    aria-label="Переименовать задачу"
-                    @click.stop="renameKanbanTask(task.id)"
-                  />
                   <UButton
                     size="xs"
                     color="error"
@@ -110,8 +104,8 @@
               class="rounded-md border border-primary/40 bg-default p-2"
             >
               <input
-                :data-draft-input-for="column.id"
                 v-model="draftTask.title"
+                :data-draft-input-for="column.id"
                 class="w-full bg-transparent text-sm outline-none"
                 placeholder="Новая задача..."
                 autofocus
@@ -153,7 +147,7 @@ defineProps<{
   requestDeleteKanbanColumn: (columnId: string) => void;
   onTaskDragStart: (taskId: string) => void;
   onTaskDragEnd: () => void;
-  renameKanbanTask: (taskId: string) => void;
+  openKanbanTask: (taskId: string) => void;
   requestDeleteKanbanTask: (taskId: string) => void;
   commitDraftTask: () => void;
   cancelDraftTask: () => void;

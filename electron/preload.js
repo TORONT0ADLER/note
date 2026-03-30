@@ -5,6 +5,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   setUiSettings: (settings) => ipcRenderer.invoke("set-ui-settings", settings),
   selectFolder: () => ipcRenderer.invoke("select-folder"),
   selectFiles: () => ipcRenderer.invoke("select-files"),
+  getFolderSize: (folderPath) =>
+    ipcRenderer.invoke("get-folder-size", folderPath),
   openFilePath: (filePath) => ipcRenderer.invoke("open-file-path", filePath),
   readImageAsDataUrl: (filePath) =>
     ipcRenderer.invoke("read-image-as-data-url", filePath),
@@ -14,6 +16,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("read-kanban-data", folderPath),
   saveKanbanData: (folderPath, payload) =>
     ipcRenderer.invoke("save-kanban-data", folderPath, payload),
+  saveKanbanDataSync: (folderPath, payload) =>
+    ipcRenderer.sendSync("save-kanban-data-sync", folderPath, payload),
   readFolderMetadata: (folderPath) =>
     ipcRenderer.invoke("read-folder-metadata", folderPath),
   saveFolderMetadata: (folderPath, payload) =>

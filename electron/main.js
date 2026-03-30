@@ -103,6 +103,30 @@ const listMarkdownFilesRecursive = (rootPath, currentPath = rootPath) => {
   return files;
 };
 
+const getDirectorySizeBytes = (targetPath) => {
+  let total = 0;
+  const entries = fs.readdirSync(targetPath, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const entryPath = path.join(targetPath, entry.name);
+
+    try {
+      if (entry.isDirectory()) {
+        total += getDirectorySizeBytes(entryPath);
+        continue;
+      }
+
+      if (entry.isFile()) {
+        total += fs.statSync(entryPath).size;
+      }
+    } catch {
+      // пропускаем отдельные файлы/папки, которые не удалось прочитать
+    }
+  }
+
+  return total;
+};
+
 // Persist vault path in userData
 const getVaultConfigPath = () =>
   path.join(app.getPath("userData"), "vault.json");
@@ -198,8 +222,15 @@ async function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       preload: path.join(__dirname, "preload.js"),
+      spellcheck: true,
     },
   });
+
+  try {
+    win.webContents.session.setSpellCheckerLanguages(["ru-RU", "en-US"]);
+  } catch (error) {
+    console.warn("Failed to set spellchecker languages:", error);
+  }
 
   win.webContents.on(
     "did-fail-load",
@@ -277,6 +308,29 @@ ipcMain.handle("select-files", async () => {
   }
 
   return result.filePaths;
+});
+
+ipcMain.handle("get-folder-size", async (_event, folderPath) => {
+  try {
+    if (!folderPath || typeof folderPath !== "string") {
+      return { ok: false, error: "Invalid folder path" };
+    }
+
+    if (!fs.existsSync(folderPath)) {
+      return { ok: false, error: "Folder does not exist" };
+    }
+
+    const stat = fs.statSync(folderPath);
+    if (!stat.isDirectory()) {
+      return { ok: false, error: "Path is not a directory" };
+    }
+
+    const sizeBytes = getDirectorySizeBytes(folderPath);
+    return { ok: true, sizeBytes };
+  } catch (err) {
+    console.error("get-folder-size error:", err);
+    return { ok: false, error: String(err) };
+  }
 });
 
 ipcMain.handle("open-file-path", async (_event, filePath) => {
@@ -408,6 +462,33 @@ ipcMain.handle("save-kanban-data", (_event, folderPath, payload) => {
   } catch (err) {
     console.error("save-kanban-data error:", err);
     return { ok: false, error: String(err) };
+  }
+});
+
+ipcMain.on("save-kanban-data-sync", (event, folderPath, payload) => {
+  try {
+    if (!folderPath) {
+      event.returnValue = { ok: false, error: "No vault path" };
+      return;
+    }
+
+    if (!fs.existsSync(folderPath)) {
+      fs.mkdirSync(folderPath, { recursive: true });
+    }
+
+    const kanbanPath = toVaultAbsolutePath(folderPath, KANBAN_FILE_NAME);
+    fs.mkdirSync(path.dirname(kanbanPath), { recursive: true });
+    const data = {
+      columns: Array.isArray(payload?.columns) ? payload.columns : [],
+      tasks: Array.isArray(payload?.tasks) ? payload.tasks : [],
+      updatedAt: new Date().toISOString(),
+    };
+
+    fs.writeFileSync(kanbanPath, JSON.stringify(data, null, 2), "utf-8");
+    event.returnValue = { ok: true };
+  } catch (err) {
+    console.error("save-kanban-data-sync error:", err);
+    event.returnValue = { ok: false, error: String(err) };
   }
 });
 

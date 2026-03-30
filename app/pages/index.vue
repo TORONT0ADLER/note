@@ -1,9 +1,8 @@
 <template>
-  <UContainer class="py-4 !max-w-none px-2 sm:px-3 lg:px-4">
+  <UContainer class="py-4 pb-24 lg:pb-4 !max-w-none px-2 sm:px-3 lg:px-4">
     <div class="mb-4 flex items-center justify-between">
       <div>
-        <p class="text-sm text-muted">Noteforge</p>
-        <h1 class="text-2xl font-semibold">Заметки</h1>
+        <h1 class="text-2xl font-semibold">NoteForge</h1>
       </div>
 
       <div class="flex items-center gap-2">
@@ -17,46 +16,18 @@
           />
         </UTooltip>
 
-        <UPopover>
-          <UButton
-            color="neutral"
-            variant="soft"
-            icon="i-lucide-settings-2"
-            aria-label="Настройки"
-          />
-
-          <template #content>
-            <div class="w-64 space-y-3 p-3">
-              <div>
-                <p class="text-sm font-medium text-highlighted">Настройки</p>
-                <p class="text-xs text-muted">
-                  Пока доступна только тема акцента.
-                </p>
-              </div>
-
-              <div class="space-y-2">
-                <p class="text-xs text-muted">Акцентный цвет</p>
-                <div class="grid grid-cols-2 gap-2">
-                  <UButton
-                    v-for="option in accentOptions"
-                    :key="option.value"
-                    size="xs"
-                    color="neutral"
-                    :variant="accentColor === option.value ? 'solid' : 'soft'"
-                    @click="setAccentColor(option.value)"
-                  >
-                    {{ option.label }}
-                  </UButton>
-                </div>
-              </div>
-            </div>
-          </template>
-        </UPopover>
+        <UButton
+          color="neutral"
+          variant="soft"
+          icon="i-lucide-settings-2"
+          aria-label="Настройки"
+          @click="isSettingsModalOpen = true"
+        />
       </div>
     </div>
 
     <div class="flex flex-col gap-4 lg:flex-row">
-      <div class="lg:w-10 lg:shrink-0 lg:self-start">
+      <div class="hidden lg:block lg:w-10 lg:shrink-0 lg:self-start">
         <div class="flex flex-col items-start gap-2">
           <UTooltip text="Заметки" :delay-duration="0">
             <UButton
@@ -106,43 +77,66 @@
           class="min-w-0 flex-1 flex flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-2"
           :style="notesWorkspaceStyle"
         >
-          <div class="notes-list-pane lg:shrink-0">
+          <div
+            class="flex items-center justify-between gap-2 rounded-lg border border-default bg-muted/20 p-2 lg:hidden"
+          >
+            <div class="flex items-center gap-1">
+              <UButton
+                size="xs"
+                color="neutral"
+                :variant="mobileNotesView === 'list' ? 'soft' : 'ghost'"
+                icon="i-lucide-list"
+                @click="mobileNotesView = 'list'"
+              >
+                Список
+              </UButton>
+              <UButton
+                size="xs"
+                color="neutral"
+                :variant="mobileNotesView === 'editor' ? 'soft' : 'ghost'"
+                icon="i-lucide-square-pen"
+                :disabled="!activeNoteId"
+                @click="mobileNotesView = 'editor'"
+              >
+                Редактор
+              </UButton>
+            </div>
+
+            <UButton
+              v-if="mobileNotesView === 'editor'"
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-chevron-left"
+              @click="mobileNotesView = 'list'"
+            >
+              К заметкам
+            </UButton>
+          </div>
+
+          <div
+            class="notes-list-pane lg:shrink-0"
+            :class="
+              isMobileViewport && mobileNotesView !== 'list' ? 'hidden' : ''
+            "
+          >
             <UCard>
               <template #header>
-                <div class="space-y-1">
+                <div class="space-y-2">
                   <UInput
                     v-model="searchQuery"
+                    class="h-10 w-full"
                     icon="i-lucide-search"
                     placeholder="Поиск заметок"
                   />
-
-                  <div class="flex gap-1">
-                    <UButton
-                      size="xs"
-                      icon="i-lucide-folder-plus"
-                      color="neutral"
-                      variant="soft"
-                      @click="createFolder()"
-                    >
-                      Папка
-                    </UButton>
-                    <UButton
-                      size="xs"
-                      icon="i-lucide-file-plus"
-                      color="primary"
-                      variant="soft"
-                      @click="createNote()"
-                    >
-                      Заметка
-                    </UButton>
-                  </div>
                 </div>
               </template>
 
               <div
-                class="space-y-1 overflow-y-auto lg:max-h-[calc(100vh-13rem)]"
+                class="space-y-0 overflow-y-auto lg:max-h-[calc(100vh-13rem)]"
+                @contextmenu="onNotesListContextMenu"
               >
-                <div v-if="rootFilteredNotes.length" class="space-y-1">
+                <div v-if="rootFilteredNotes.length" class="space-y-0">
                   <p
                     class="px-1 text-xs font-medium uppercase tracking-wide text-muted"
                   >
@@ -161,7 +155,7 @@
                   >
                     <button
                       class="min-w-0 flex-1 px-1 py-1.5 text-left"
-                      @click="activeNoteId = note.id"
+                      @click="openNote(note.id)"
                     >
                       <p class="truncate text-sm font-medium text-highlighted">
                         {{ noteTitle(note) }}
@@ -183,22 +177,23 @@
                 <div
                   v-for="folderEntry in visibleFolders"
                   :key="folderEntry.folder.id"
-                  class="relative space-y-1"
+                  class="relative"
                 >
                   <div
                     v-if="folderEntry.depth > 0"
-                    class="pointer-events-none absolute inset-y-0 left-1 z-10 flex items-stretch"
+                    class="pointer-events-none absolute inset-y-0 left-1 z-10 w-0"
                     aria-hidden="true"
                   >
                     <span
                       v-for="level in folderEntry.depth"
                       :key="`folder-guide-${folderEntry.folder.id}-${level}`"
-                      class="mr-2 w-px bg-primary/40"
+                      class="absolute inset-y-0 w-px bg-primary/35"
+                      :style="{ left: `${(level - 1) * 0.75}rem` }"
                     />
                   </div>
 
                   <div
-                    class="group relative flex items-center justify-between px-1"
+                    class="group relative flex items-center justify-between px-1 py-0.5"
                   >
                     <button
                       class="flex min-w-0 items-center gap-1 text-left"
@@ -263,16 +258,16 @@
 
                   <div
                     v-show="!isFolderCollapsed(folderEntry.folder.id)"
-                    class="relative space-y-1"
+                    class="relative space-y-0"
                   >
                     <div
-                      class="pointer-events-none absolute inset-y-0 left-1 z-10 flex items-stretch"
+                      class="pointer-events-none absolute inset-y-0 left-1 z-10 w-0"
                       aria-hidden="true"
                     >
                       <span
-                        v-for="level in folderEntry.depth + 1"
-                        :key="`note-guide-rail-${folderEntry.folder.id}-${level}`"
-                        class="mr-2 w-px bg-primary/30"
+                        :key="`note-guide-rail-${folderEntry.folder.id}`"
+                        class="absolute inset-y-0 w-px bg-primary/30"
+                        :style="{ left: `${folderEntry.depth * 0.75}rem` }"
                       />
                     </div>
 
@@ -291,7 +286,7 @@
                         :style="{
                           paddingLeft: `${0.5 + (folderEntry.depth + 1) * 0.75}rem`,
                         }"
-                        @click="activeNoteId = note.id"
+                        @click="openNote(note.id)"
                       >
                         <p
                           class="truncate text-sm font-medium text-highlighted"
@@ -325,7 +320,7 @@
                 >
                   <button
                     class="min-w-0 flex-1 px-1 py-1.5 text-left"
-                    @click="activeNoteId = note.id"
+                    @click="openNote(note.id)"
                   >
                     <p class="truncate text-sm font-medium text-highlighted">
                       {{ noteTitle(note) }}
@@ -350,6 +345,36 @@
                   title="Ничего не найдено"
                   description="Измените поиск или создайте новую заметку."
                 />
+
+                <div
+                  v-if="isNotesContextMenuOpen"
+                  ref="notesContextMenuRef"
+                  class="fixed z-[120] min-w-48 rounded-md border border-default bg-default p-1 shadow-lg"
+                  :style="notesContextMenuStyle"
+                >
+                  <div class="flex flex-col gap-0.5">
+                    <UButton
+                      size="sm"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-file-plus"
+                      class="justify-start"
+                      @click="runNotesContextAction(() => createNote())"
+                    >
+                      Новая заметка
+                    </UButton>
+                    <UButton
+                      size="sm"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-folder-plus"
+                      class="justify-start"
+                      @click="runNotesContextAction(() => createFolder())"
+                    >
+                      Новая папка
+                    </UButton>
+                  </div>
+                </div>
               </div>
             </UCard>
           </div>
@@ -364,7 +389,12 @@
             <div class="notes-panel-resizer__handle" />
           </div>
 
-          <div class="notes-editor-pane lg:min-w-0 lg:flex-1">
+          <div
+            class="notes-editor-pane lg:min-w-0 lg:flex-1"
+            :class="
+              isMobileViewport && mobileNotesView !== 'editor' ? 'hidden' : ''
+            "
+          >
             <UCard>
               <template #header>
                 <div class="space-y-2">
@@ -390,17 +420,6 @@
                         >
                           {{ vaultPath ? vaultFolderName : "Открыть папку" }}
                         </UButton>
-                      </UTooltip>
-
-                      <UTooltip v-if="vaultPath" text="Отключить хранилище">
-                        <UButton
-                          size="xs"
-                          color="neutral"
-                          variant="ghost"
-                          icon="i-lucide-x"
-                          aria-label="Отключить хранилище"
-                          @click="clearVault"
-                        />
                       </UTooltip>
                     </div>
 
@@ -569,8 +588,169 @@
               <div
                 v-if="activeNote"
                 class="space-y-3 overflow-y-auto lg:max-h-[calc(100vh-16rem)]"
+                @contextmenu="onEditorContextMenu"
               >
                 <EditorContent :editor="editor" class="prosemirror-editor" />
+
+                <div
+                  v-if="isTextContextMenuOpen"
+                  ref="textContextMenuRef"
+                  class="fixed z-[120] min-w-56 rounded-md border border-default bg-default p-1 shadow-lg"
+                  :style="textContextMenuStyle"
+                >
+                  <div class="flex flex-col gap-0.5">
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-bold"
+                      class="justify-start"
+                      @click="runTextContextAction(toggleBold)"
+                    >
+                      Жирный
+                    </UButton>
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-italic"
+                      class="justify-start"
+                      @click="runTextContextAction(toggleItalic)"
+                    >
+                      Курсив
+                    </UButton>
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-underline"
+                      class="justify-start"
+                      @click="runTextContextAction(toggleUnderline)"
+                    >
+                      Подчеркнутый
+                    </UButton>
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-code"
+                      class="justify-start"
+                      @click="runTextContextAction(toggleCode)"
+                    >
+                      Код
+                    </UButton>
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-file-code-2"
+                      class="justify-start"
+                      @click="runTextContextAction(toggleCodeBlock)"
+                    >
+                      Блок кода
+                    </UButton>
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-list"
+                      class="justify-start"
+                      @click="runTextContextAction(toggleBulletList)"
+                    >
+                      Маркированный список
+                    </UButton>
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-list-ordered"
+                      class="justify-start"
+                      @click="runTextContextAction(toggleOrderedList)"
+                    >
+                      Нумерованный список
+                    </UButton>
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-quote"
+                      class="justify-start"
+                      @click="runTextContextAction(toggleBlockquote)"
+                    >
+                      Цитата
+                    </UButton>
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-heading-2"
+                      class="justify-start"
+                      @click="runTextContextAction(toggleHeadingLevel2)"
+                    >
+                      Заголовок H2
+                    </UButton>
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-link"
+                      class="justify-start"
+                      @click="runTextContextAction(setLink)"
+                    >
+                      Ссылка
+                    </UButton>
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-table"
+                      class="justify-start"
+                      @click="runTextContextAction(insertTable)"
+                    >
+                      Вставить таблицу
+                    </UButton>
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-columns-2"
+                      class="justify-start"
+                      @click="runTextContextAction(addColumnAfter)"
+                    >
+                      Добавить колонку
+                    </UButton>
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-rows-2"
+                      class="justify-start"
+                      @click="runTextContextAction(addRowAfter)"
+                    >
+                      Добавить строку
+                    </UButton>
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-table-properties"
+                      class="justify-start"
+                      @click="runTextContextAction(deleteTable)"
+                    >
+                      Удалить таблицу
+                    </UButton>
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-eraser"
+                      class="justify-start"
+                      @click="runTextContextAction(clearFormatting)"
+                    >
+                      Очистить форматирование
+                    </UButton>
+                  </div>
+                </div>
               </div>
 
               <UAlert
@@ -701,7 +881,7 @@
           :request-delete-kanban-column="requestDeleteKanbanColumn"
           :on-task-drag-start="onTaskDragStart"
           :on-task-drag-end="onTaskDragEnd"
-          :rename-kanban-task="renameKanbanTask"
+          :open-kanban-task="openKanbanTask"
           :request-delete-kanban-task="requestDeleteKanbanTask"
           :commit-draft-task="commitDraftTask"
           :cancel-draft-task="cancelDraftTask"
@@ -711,7 +891,324 @@
       <GraphPanel v-else />
     </div>
 
-    <UModal v-model:open="isDeleteModalOpen" title="Удалить заметку?">
+    <div
+      class="fixed inset-x-0 bottom-0 z-40 border-t border-default bg-default/95 px-2 py-2 backdrop-blur lg:hidden"
+    >
+      <div class="grid grid-cols-4 gap-1">
+        <UButton
+          color="neutral"
+          :variant="leftPanel === 'notes' ? 'soft' : 'ghost'"
+          icon="i-lucide-notebook-pen"
+          class="justify-center"
+          @click="leftPanel = 'notes'"
+        />
+        <UButton
+          color="neutral"
+          :variant="leftPanel === 'tasks' ? 'soft' : 'ghost'"
+          icon="i-lucide-kanban-square"
+          class="justify-center"
+          @click="leftPanel = 'tasks'"
+        />
+        <UButton
+          color="neutral"
+          :variant="leftPanel === 'library' ? 'soft' : 'ghost'"
+          icon="i-lucide-library-big"
+          class="justify-center"
+          @click="leftPanel = 'library'"
+        />
+        <UButton
+          color="neutral"
+          :variant="leftPanel === 'graph' ? 'soft' : 'ghost'"
+          icon="i-lucide-network"
+          class="justify-center"
+          @click="leftPanel = 'graph'"
+        />
+      </div>
+    </div>
+
+    <UModal
+      v-model:open="isSettingsModalOpen"
+      :ui="{
+        content:
+          'w-screen max-w-none h-[100dvh] rounded-none border-0 bg-default shadow-none sm:w-[80vw] sm:max-w-[80vw] sm:h-[80vh] sm:rounded-xl sm:border sm:border-primary/20 sm:shadow-2xl',
+      }"
+    >
+      <template #header>
+        <div class="flex items-center gap-2">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-arrow-left"
+            aria-label="Назад"
+            @click="isSettingsModalOpen = false"
+          />
+          <p class="text-sm font-medium text-highlighted">Настройки</p>
+        </div>
+      </template>
+      <template #body>
+        <div
+          class="h-full overflow-hidden p-1 grid gap-4 sm:grid-cols-[220px_minmax(0,1fr)]"
+        >
+          <div class="space-y-1 rounded-lg border border-default/60 p-1">
+            <UButton
+              block
+              :color="settingsSection === 'appearance' ? 'primary' : 'neutral'"
+              :variant="settingsSection === 'appearance' ? 'soft' : 'ghost'"
+              icon="i-lucide-palette"
+              class="justify-start"
+              @click="settingsSection = 'appearance'"
+            >
+              Внешний вид
+            </UButton>
+            <UButton
+              block
+              :color="settingsSection === 'editor' ? 'primary' : 'neutral'"
+              :variant="settingsSection === 'editor' ? 'soft' : 'ghost'"
+              icon="i-lucide-pencil-line"
+              class="justify-start"
+              @click="settingsSection = 'editor'"
+            >
+              Редактор
+            </UButton>
+            <UButton
+              block
+              :color="settingsSection === 'hotkeys' ? 'primary' : 'neutral'"
+              :variant="settingsSection === 'hotkeys' ? 'soft' : 'ghost'"
+              icon="i-lucide-keyboard"
+              class="justify-start"
+              @click="settingsSection = 'hotkeys'"
+            >
+              Горячие клавиши
+            </UButton>
+            <UButton
+              block
+              :color="settingsSection === 'app' ? 'primary' : 'neutral'"
+              :variant="settingsSection === 'app' ? 'soft' : 'ghost'"
+              icon="i-lucide-layout-dashboard"
+              class="justify-start"
+              @click="settingsSection = 'app'"
+            >
+              Приложение
+            </UButton>
+          </div>
+
+          <div class="min-h-0 space-y-4 overflow-y-auto px-1 pt-1 pb-1">
+            <template v-if="settingsSection === 'appearance'">
+              <div class="space-y-2">
+                <p class="text-sm font-medium text-highlighted">Тема</p>
+                <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <UButton
+                    v-for="option in themeOptions"
+                    :key="option.value"
+                    color="neutral"
+                    :variant="
+                      colorMode.preference === option.value ? 'solid' : 'soft'
+                    "
+                    @click="setThemePreference(option.value)"
+                  >
+                    {{ option.label }}
+                  </UButton>
+                </div>
+              </div>
+
+              <div class="space-y-2">
+                <p class="text-sm font-medium text-highlighted">
+                  Акцентный цвет
+                </p>
+                <div class="flex flex-wrap items-center gap-2">
+                  <button
+                    v-for="option in accentOptions"
+                    :key="option.value"
+                    type="button"
+                    class="h-6 w-6 rounded-full border-2 transition-transform hover:scale-105"
+                    :class="[
+                      option.value === 'blue' && 'bg-blue-500',
+                      option.value === 'orange' && 'bg-orange-500',
+                      option.value === 'cyan' && 'bg-cyan-500',
+                      option.value === 'indigo' && 'bg-indigo-500',
+                      option.value === 'violet' && 'bg-violet-500',
+                      option.value === 'green' && 'bg-green-500',
+                      accentColor === option.value
+                        ? 'border-white ring-2 ring-primary/60 ring-offset-2 ring-offset-default'
+                        : 'border-transparent',
+                    ]"
+                    :title="option.label"
+                    :aria-label="option.label"
+                    @click="setAccentColor(option.value)"
+                  />
+                </div>
+              </div>
+            </template>
+
+            <template v-else-if="settingsSection === 'editor'">
+              <UCard>
+                <div class="space-y-3">
+                  <div class="flex items-center justify-between gap-3">
+                    <div class="space-y-1">
+                      <p class="text-sm font-medium text-highlighted">
+                        Проверка орфографии
+                      </p>
+                      <p class="text-sm text-muted">
+                        Красное волнистое подчёркивание ошибок (RU/EN).
+                      </p>
+                    </div>
+
+                    <USwitch
+                      v-model="isSpellcheckEnabled"
+                      color="primary"
+                      :aria-label="
+                        isSpellcheckEnabled
+                          ? 'Отключить проверку орфографии'
+                          : 'Включить проверку орфографии'
+                      "
+                    />
+                  </div>
+                </div>
+              </UCard>
+
+              <UCard>
+                <div class="space-y-1">
+                  <p class="text-sm font-medium text-highlighted">
+                    Контекстное меню
+                  </p>
+                  <p class="text-sm text-muted">
+                    По правому клику на выделенном тексте доступны быстрые
+                    действия форматирования.
+                  </p>
+                </div>
+              </UCard>
+            </template>
+
+            <template v-else-if="settingsSection === 'hotkeys'">
+              <UCard>
+                <div class="space-y-3">
+                  <div class="flex items-center justify-between gap-2">
+                    <p class="text-sm font-medium text-highlighted">
+                      Настройка горячих клавиш
+                    </p>
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="soft"
+                      icon="i-lucide-rotate-ccw"
+                      @click="resetHotkeysToDefault"
+                    >
+                      Сбросить по умолчанию
+                    </UButton>
+                  </div>
+
+                  <p class="text-xs text-muted">
+                    Нажмите «Назначить», затем нужную комбинацию. Если сочетание
+                    уже занято, оно будет автоматически переназначено.
+                  </p>
+
+                  <div class="space-y-2">
+                    <div
+                      v-for="action in HOTKEY_ACTIONS"
+                      :key="action"
+                      class="flex items-center justify-between gap-2 rounded-md border border-default p-2"
+                    >
+                      <div class="min-w-0">
+                        <p class="truncate text-sm text-highlighted">
+                          {{ HOTKEY_LABELS[action] }}
+                        </p>
+                        <p class="text-xs text-muted">
+                          {{ formatHotkeyForDisplay(hotkeys[action]) }}
+                        </p>
+                      </div>
+
+                      <UButton
+                        size="xs"
+                        color="neutral"
+                        variant="soft"
+                        icon="i-lucide-key-round"
+                        @click="startHotkeyCapture(action)"
+                      >
+                        Назначить
+                      </UButton>
+                    </div>
+                  </div>
+                </div>
+              </UCard>
+            </template>
+
+            <template v-else>
+              <UCard>
+                <div class="space-y-2">
+                  <p class="text-sm font-medium text-highlighted">Хранилище</p>
+                  <p class="text-sm text-muted">
+                    Текущая папка:
+                    <span class="font-medium text-highlighted">
+                      {{ vaultPath || "Не выбрана" }}
+                    </span>
+                  </p>
+                  <p class="text-sm text-muted">
+                    Размер папки:
+                    <span class="font-medium text-highlighted">
+                      {{ isLoadingVaultSize ? "Считаем…" : formattedVaultSize }}
+                    </span>
+                  </p>
+
+                  <div class="flex flex-wrap gap-2">
+                    <UButton
+                      size="sm"
+                      color="primary"
+                      variant="soft"
+                      icon="i-lucide-folder-open"
+                      @click="pickVaultFolder"
+                    >
+                      Выбрать папку
+                    </UButton>
+                    <UButton
+                      v-if="vaultPath"
+                      size="sm"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-x"
+                      @click="clearVault"
+                    >
+                      Отключить
+                    </UButton>
+                  </div>
+                </div>
+              </UCard>
+            </template>
+          </div>
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex w-full justify-end">
+          <UButton
+            color="neutral"
+            variant="soft"
+            @click="isSettingsModalOpen = false"
+          >
+            Закрыть
+          </UButton>
+        </div>
+      </template>
+    </UModal>
+
+    <UModal
+      v-model:open="isDeleteModalOpen"
+      :ui="{
+        content:
+          'w-screen max-w-none h-[100dvh] rounded-none border-0 bg-default shadow-none sm:h-auto sm:w-auto sm:max-w-lg sm:rounded-xl sm:border sm:border-default sm:shadow-2xl',
+      }"
+    >
+      <template #header>
+        <div class="flex items-center gap-2">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-arrow-left"
+            aria-label="Назад"
+            @click="isDeleteModalOpen = false"
+          />
+          <p class="text-sm font-medium text-highlighted">Удалить заметку?</p>
+        </div>
+      </template>
       <template #body>
         <p class="text-sm text-muted">
           Вы точно хотите удалить заметку? Это действие нельзя отменить.
@@ -736,9 +1233,25 @@
 
     <UModal
       v-model:open="isLibraryNoteModalOpen"
-      :title="libraryActiveNoteTitle"
-      :ui="{ content: 'w-[80vw] sm:max-w-[80vw] h-[80vh]' }"
+      :ui="{
+        content:
+          'w-screen max-w-none h-[100dvh] rounded-none border-0 bg-default shadow-none sm:w-[80vw] sm:max-w-[80vw] sm:h-[80vh] sm:rounded-xl sm:border sm:border-default sm:shadow-2xl',
+      }"
     >
+      <template #header>
+        <div class="flex items-center gap-2">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-arrow-left"
+            aria-label="Назад"
+            @click="isLibraryNoteModalOpen = false"
+          />
+          <p class="truncate text-sm font-medium text-highlighted">
+            {{ libraryActiveNoteTitle }}
+          </p>
+        </div>
+      </template>
       <template #body>
         <div class="h-full overflow-y-auto">
           <EditorContent
@@ -752,8 +1265,23 @@
 
     <UModal
       v-model:open="isDeleteKanbanColumnModalOpen"
-      title="Удалить колонку?"
+      :ui="{
+        content:
+          'w-screen max-w-none h-[100dvh] rounded-none border-0 bg-default shadow-none sm:h-auto sm:w-auto sm:max-w-lg sm:rounded-xl sm:border sm:border-default sm:shadow-2xl',
+      }"
     >
+      <template #header>
+        <div class="flex items-center gap-2">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-arrow-left"
+            aria-label="Назад"
+            @click="cancelDeleteKanbanColumn"
+          />
+          <p class="text-sm font-medium text-highlighted">Удалить колонку?</p>
+        </div>
+      </template>
       <template #body>
         <p class="text-sm text-muted">
           Вы точно хотите удалить колонку
@@ -785,7 +1313,25 @@
       </template>
     </UModal>
 
-    <UModal v-model:open="isDeleteKanbanTaskModalOpen" title="Удалить задачу?">
+    <UModal
+      v-model:open="isDeleteKanbanTaskModalOpen"
+      :ui="{
+        content:
+          'w-screen max-w-none h-[100dvh] rounded-none border-0 bg-default shadow-none sm:h-auto sm:w-auto sm:max-w-lg sm:rounded-xl sm:border sm:border-default sm:shadow-2xl',
+      }"
+    >
+      <template #header>
+        <div class="flex items-center gap-2">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-arrow-left"
+            aria-label="Назад"
+            @click="cancelDeleteKanbanTask"
+          />
+          <p class="text-sm font-medium text-highlighted">Удалить задачу?</p>
+        </div>
+      </template>
       <template #body>
         <p class="text-sm text-muted">
           Вы точно хотите удалить задачу
@@ -817,7 +1363,221 @@
       </template>
     </UModal>
 
-    <UModal v-model:open="isDeleteFolderModalOpen" title="Удалить папку?">
+    <UModal
+      v-model:open="isKanbanTaskModalOpen"
+      :ui="{
+        content:
+          'w-screen max-w-none h-[100dvh] rounded-none border-0 bg-default shadow-none sm:w-[90vw] sm:max-w-[90vw] sm:h-[84vh] sm:rounded-xl sm:border sm:border-default sm:shadow-2xl',
+      }"
+    >
+      <template #header>
+        <div class="flex items-center gap-2">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-arrow-left"
+            aria-label="Назад"
+            @click="isKanbanTaskModalOpen = false"
+          />
+          <p class="text-sm font-medium text-highlighted">Карточка задачи</p>
+        </div>
+      </template>
+      <template #body>
+        <div class="h-full grid grid-rows-[auto_minmax(0,1fr)] gap-3">
+          <div class="flex items-center gap-2">
+            <UInput
+              v-if="isKanbanTaskEditMode && activeKanbanTask"
+              v-model="activeKanbanTask.title"
+              class="flex-1 text-lg"
+              placeholder="Название задачи"
+            />
+            <p
+              v-else
+              class="flex-1 truncate text-lg font-semibold text-highlighted"
+            >
+              {{ activeKanbanTask?.title || "Без названия" }}
+            </p>
+
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="soft"
+              icon="i-lucide-pencil"
+              :aria-label="
+                isKanbanTaskEditMode
+                  ? 'Завершить редактирование задачи'
+                  : 'Редактировать задачу'
+              "
+              @click="isKanbanTaskEditMode = !isKanbanTaskEditMode"
+            />
+          </div>
+
+          <div class="min-h-0 grid gap-3 lg:grid-cols-[minmax(0,1fr)_360px]">
+            <UCard class="min-h-0 overflow-hidden">
+              <template #header>
+                <div
+                  v-if="isKanbanTaskEditMode"
+                  class="flex flex-wrap items-center gap-1"
+                >
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    icon="i-lucide-bold"
+                    @mousedown.prevent="
+                      kanbanTaskEditor?.chain().focus().toggleBold().run()
+                    "
+                  />
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    icon="i-lucide-italic"
+                    @mousedown.prevent="
+                      kanbanTaskEditor?.chain().focus().toggleItalic().run()
+                    "
+                  />
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    icon="i-lucide-underline"
+                    @mousedown.prevent="
+                      kanbanTaskEditor?.chain().focus().toggleUnderline().run()
+                    "
+                  />
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    icon="i-lucide-list"
+                    @mousedown.prevent="
+                      kanbanTaskEditor?.chain().focus().toggleBulletList().run()
+                    "
+                  />
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    icon="i-lucide-list-ordered"
+                    @mousedown.prevent="
+                      kanbanTaskEditor
+                        ?.chain()
+                        .focus()
+                        .toggleOrderedList()
+                        .run()
+                    "
+                  />
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    icon="i-lucide-heading-2"
+                    @mousedown.prevent="
+                      kanbanTaskEditor
+                        ?.chain()
+                        .focus()
+                        .toggleHeading({ level: 2 })
+                        .run()
+                    "
+                  />
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    icon="i-lucide-eraser"
+                    @mousedown.prevent="
+                      kanbanTaskEditor
+                        ?.chain()
+                        .focus()
+                        .clearNodes()
+                        .unsetAllMarks()
+                        .run()
+                    "
+                  />
+                </div>
+              </template>
+
+              <div class="h-full overflow-y-auto">
+                <EditorContent
+                  v-if="kanbanTaskEditor"
+                  :editor="kanbanTaskEditor"
+                  class="prosemirror-editor"
+                />
+              </div>
+            </UCard>
+
+            <UCard class="min-h-0 overflow-hidden">
+              <template #header>
+                <p class="text-sm font-medium text-highlighted">Комментарии</p>
+              </template>
+
+              <div class="flex h-full flex-col gap-3">
+                <div class="min-h-0 flex-1 space-y-2 overflow-y-auto">
+                  <div
+                    v-for="comment in activeKanbanTask?.comments || []"
+                    :key="comment.id"
+                    class="rounded-md border border-default bg-muted/20 p-2"
+                  >
+                    <p class="text-sm text-highlighted whitespace-pre-wrap">
+                      {{ comment.text }}
+                    </p>
+                    <p class="mt-1 text-xs text-muted">
+                      {{ new Date(comment.createdAt).toLocaleString() }}
+                    </p>
+                  </div>
+
+                  <UAlert
+                    v-if="!activeKanbanTask?.comments?.length"
+                    color="neutral"
+                    variant="subtle"
+                    title="Комментариев пока нет"
+                  />
+                </div>
+
+                <div v-if="isKanbanTaskEditMode" class="w-full space-y-2">
+                  <UTextarea
+                    v-model="draftKanbanComment"
+                    class="w-full"
+                    :rows="4"
+                    placeholder="Оставьте комментарий..."
+                  />
+                  <UButton
+                    block
+                    color="primary"
+                    variant="soft"
+                    icon="i-lucide-send"
+                    @click="addKanbanComment"
+                  >
+                    Добавить комментарий
+                  </UButton>
+                </div>
+              </div>
+            </UCard>
+          </div>
+        </div>
+      </template>
+    </UModal>
+
+    <UModal
+      v-model:open="isDeleteFolderModalOpen"
+      :ui="{
+        content:
+          'w-screen max-w-none h-[100dvh] rounded-none border-0 bg-default shadow-none sm:h-auto sm:w-auto sm:max-w-lg sm:rounded-xl sm:border sm:border-default sm:shadow-2xl',
+      }"
+    >
+      <template #header>
+        <div class="flex items-center gap-2">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-arrow-left"
+            aria-label="Назад"
+            @click="cancelDeleteFolder"
+          />
+          <p class="text-sm font-medium text-highlighted">Удалить папку?</p>
+        </div>
+      </template>
       <template #body>
         <p class="text-sm text-muted">
           Вы точно хотите удалить папку
@@ -848,7 +1608,27 @@
       </template>
     </UModal>
 
-    <UModal v-model:open="isTextInputModalOpen" :title="textInputModalTitle">
+    <UModal
+      v-model:open="isTextInputModalOpen"
+      :ui="{
+        content:
+          'w-screen max-w-none h-[100dvh] rounded-none border-0 bg-default shadow-none sm:h-auto sm:w-auto sm:max-w-lg sm:rounded-xl sm:border sm:border-default sm:shadow-2xl',
+      }"
+    >
+      <template #header>
+        <div class="flex items-center gap-2">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-arrow-left"
+            aria-label="Назад"
+            @click="cancelTextInputModal"
+          />
+          <p class="text-sm font-medium text-highlighted">
+            {{ textInputModalTitle }}
+          </p>
+        </div>
+      </template>
       <template #body>
         <div class="mx-auto w-full max-w-md space-y-3">
           <p v-if="textInputModalDescription" class="text-sm text-muted">
@@ -937,9 +1717,29 @@ type KanbanTask = {
   id: string;
   columnId: string;
   title: string;
+  description: JSONContent;
+  comments: KanbanComment[];
+};
+
+type KanbanComment = {
+  id: string;
+  text: string;
+  createdAt: string;
 };
 
 type LeftPanel = "notes" | "graph" | "tasks" | "library";
+type SettingsSection = "appearance" | "editor" | "hotkeys" | "app";
+
+type HotkeyAction =
+  | "bold"
+  | "italic"
+  | "inlineCode"
+  | "codeBlock"
+  | "heading2"
+  | "bulletList"
+  | "orderedList"
+  | "blockquote"
+  | "clearFormatting";
 
 type UploadKind = "image" | "pdf" | "file";
 
@@ -972,6 +1772,9 @@ interface ElectronAPI {
   }) => Promise<{ theme?: string; accent?: string }>;
   selectFolder: () => Promise<string | null>;
   selectFiles: () => Promise<string[]>;
+  getFolderSize: (
+    folderPath: string,
+  ) => Promise<{ ok: boolean; sizeBytes?: number; error?: string }>;
   openFilePath: (filePath: string) => Promise<{ ok: boolean; error?: string }>;
   readImageAsDataUrl: (
     filePath: string,
@@ -992,6 +1795,10 @@ interface ElectronAPI {
     folderPath: string,
     payload: { columns: KanbanColumn[]; tasks: KanbanTask[] },
   ) => Promise<{ ok: boolean; error?: string }>;
+  saveKanbanDataSync: (
+    folderPath: string,
+    payload: { columns: KanbanColumn[]; tasks: KanbanTask[] },
+  ) => { ok: boolean; error?: string };
   readFolderMetadata: (folderPath: string) => Promise<{ folders: unknown[] }>;
   saveFolderMetadata: (
     folderPath: string,
@@ -1041,6 +1848,8 @@ const isElectron = () => typeof window !== "undefined" && !!window.electronAPI;
 const STORAGE_KEY = "noteforge.notes.v3";
 const ACCENT_STORAGE_KEY = "noteforge.ui.accent.v1";
 const THEME_STORAGE_KEY = "noteforge.ui.theme.v1";
+const SPELLCHECK_STORAGE_KEY = "noteforge.editor.spellcheck.v1";
+const HOTKEYS_STORAGE_KEY = "noteforge.editor.hotkeys.v1";
 const NOTES_LIST_WIDTH_STORAGE_KEY = "noteforge.ui.notesListWidth.v2";
 const NOTES_LIST_MIN_WIDTH = 220;
 const NOTES_LIST_MAX_WIDTH = 420;
@@ -1048,6 +1857,42 @@ const NOTES_EDITOR_MIN_WIDTH = 360;
 const NOTES_RESIZER_WIDTH = 16;
 const NOTES_PANES_GAP = 8;
 const lowlight = createLowlight(common);
+
+const HOTKEY_ACTIONS: HotkeyAction[] = [
+  "bold",
+  "italic",
+  "inlineCode",
+  "codeBlock",
+  "heading2",
+  "bulletList",
+  "orderedList",
+  "blockquote",
+  "clearFormatting",
+];
+
+const HOTKEY_LABELS: Record<HotkeyAction, string> = {
+  bold: "Жирный",
+  italic: "Курсив",
+  inlineCode: "Инлайн-код",
+  codeBlock: "Блок кода",
+  heading2: "Заголовок H2",
+  bulletList: "Маркированный список",
+  orderedList: "Нумерованный список",
+  blockquote: "Цитата",
+  clearFormatting: "Очистить форматирование",
+};
+
+const DEFAULT_HOTKEYS: Record<HotkeyAction, string> = {
+  bold: "Mod+B",
+  italic: "Mod+I",
+  inlineCode: "Mod+E",
+  codeBlock: "Mod+Shift+E",
+  heading2: "Mod+Shift+2",
+  bulletList: "Mod+Shift+8",
+  orderedList: "Mod+Shift+7",
+  blockquote: "Mod+Shift+.",
+  clearFormatting: "Mod+\\",
+};
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -1068,10 +1913,16 @@ const isDeleteModalOpen = ref(false);
 const isDeleteKanbanColumnModalOpen = ref(false);
 const isDeleteKanbanTaskModalOpen = ref(false);
 const isDeleteFolderModalOpen = ref(false);
+const isKanbanTaskModalOpen = ref(false);
+const isKanbanTaskEditMode = ref(false);
 const isTextInputModalOpen = ref(false);
+const isMobileViewport = ref(false);
+const mobileNotesView = ref<"list" | "editor">("list");
 const pendingDeleteColumnId = ref<string | null>(null);
 const pendingDeleteTaskId = ref<string | null>(null);
 const pendingDeleteFolderId = ref<string | null>(null);
+const activeKanbanTaskId = ref<string | null>(null);
+const draftKanbanComment = ref("");
 const textInputRef = ref<HTMLInputElement | null>(null);
 const textInputModalTitle = ref("");
 const textInputModalDescription = ref("");
@@ -1090,6 +1941,23 @@ const colorMode = useColorMode();
 const libraryCurrentFolderId = ref<string | null>(null);
 const isLibraryNoteModalOpen = ref(false);
 const libraryPreviewNoteId = ref<string | null>(null);
+const isTextContextMenuOpen = ref(false);
+const textContextMenuRef = ref<HTMLElement | null>(null);
+const textContextMenuX = ref(0);
+const textContextMenuY = ref(0);
+const isNotesContextMenuOpen = ref(false);
+const notesContextMenuRef = ref<HTMLElement | null>(null);
+const notesContextMenuX = ref(0);
+const notesContextMenuY = ref(0);
+const isSettingsModalOpen = ref(false);
+const settingsSection = ref<SettingsSection>("appearance");
+const isSpellcheckEnabled = ref(true);
+const hotkeys = ref<Record<HotkeyAction, string>>({ ...DEFAULT_HOTKEYS });
+const capturingHotkeyAction = ref<HotkeyAction | null>(null);
+const vaultSizeBytes = ref<number | null>(null);
+const isLoadingVaultSize = ref(false);
+const isApplyingKanbanTaskDescription = ref(false);
+const isHydratingVaultState = ref(false);
 
 // Vault state
 const vaultPath = ref<string | null>(null);
@@ -1103,6 +1971,24 @@ const vaultFolderName = computed(() => {
   if (!vaultPath.value) return "";
   const parts = vaultPath.value.replace(/\\/g, "/").split("/");
   return parts[parts.length - 1] || vaultPath.value;
+});
+
+const formattedVaultSize = computed(() => {
+  const bytes = vaultSizeBytes.value;
+  if (bytes === null || Number.isNaN(bytes)) return "—";
+
+  if (bytes < 1024) return `${bytes} Б`;
+
+  const units = ["КБ", "МБ", "ГБ", "ТБ"];
+  let value = bytes / 1024;
+  let unitIndex = 0;
+
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${value.toFixed(value >= 10 ? 1 : 2)} ${units[unitIndex]}`;
 });
 
 const foldersById = computed(
@@ -1145,6 +2031,12 @@ const accentOptions: { label: string; value: AccentColor }[] = [
   { label: "Индиго", value: "indigo" },
   { label: "Фиолетовый", value: "violet" },
   { label: "Зелёный", value: "green" },
+];
+
+const themeOptions: { label: string; value: ThemePreference }[] = [
+  { label: "Светлая", value: "light" },
+  { label: "Тёмная", value: "dark" },
+  { label: "Системная", value: "system" },
 ];
 
 const isThemePreference = (value: string): value is ThemePreference =>
@@ -1191,6 +2083,172 @@ const notesWorkspaceStyle = computed<Record<string, string>>(() => ({
   "--notes-list-pane-width": `${notesListWidth.value}px`,
   "--notes-resizer-width": `${NOTES_RESIZER_WIDTH}px`,
 }));
+
+const textContextMenuStyle = computed<Record<string, string>>(() => ({
+  left: `${textContextMenuX.value}px`,
+  top: `${textContextMenuY.value}px`,
+}));
+
+const notesContextMenuStyle = computed<Record<string, string>>(() => ({
+  left: `${notesContextMenuX.value}px`,
+  top: `${notesContextMenuY.value}px`,
+}));
+
+const isMacPlatform =
+  typeof navigator !== "undefined" &&
+  /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+
+const runHotkeyAction = (action: HotkeyAction) => {
+  if (action === "bold") return toggleBold();
+  if (action === "italic") return toggleItalic();
+  if (action === "inlineCode") return toggleCode();
+  if (action === "codeBlock") return toggleCodeBlock();
+  if (action === "heading2") return toggleHeadingLevel2();
+  if (action === "bulletList") return toggleBulletList();
+  if (action === "orderedList") return toggleOrderedList();
+  if (action === "blockquote") return toggleBlockquote();
+  return clearFormatting();
+};
+
+const normalizeHotkeyString = (value: string): string => {
+  const rawParts = String(value || "")
+    .split("+")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (!rawParts.length) return "";
+
+  const modifiers = new Set<string>();
+  let key = "";
+
+  for (const rawPart of rawParts) {
+    const part = rawPart.toLowerCase();
+    if (part === "mod" || part === "cmd" || part === "command") {
+      modifiers.add("Mod");
+      continue;
+    }
+    if (part === "ctrl" || part === "control") {
+      modifiers.add("Ctrl");
+      continue;
+    }
+    if (part === "alt" || part === "option") {
+      modifiers.add("Alt");
+      continue;
+    }
+    if (part === "shift") {
+      modifiers.add("Shift");
+      continue;
+    }
+
+    key = rawPart.length === 1 ? rawPart.toUpperCase() : rawPart;
+  }
+
+  if (!key) return "";
+
+  return ["Mod", "Ctrl", "Alt", "Shift"]
+    .filter((modifier) => modifiers.has(modifier))
+    .concat(key)
+    .join("+");
+};
+
+const hotkeyFromKeyboardEvent = (event: KeyboardEvent): string => {
+  const code = event.code || "";
+  const key = event.key || "";
+
+  const codeMap: Record<string, string> = {
+    Backslash: "\\",
+    Slash: "/",
+    Period: ".",
+    Comma: ",",
+    Semicolon: ";",
+    Quote: "'",
+    BracketLeft: "[",
+    BracketRight: "]",
+    Minus: "-",
+    Equal: "=",
+    Backquote: "`",
+    Space: "Space",
+  };
+
+  const ignoredKeys = new Set([
+    "Shift",
+    "Control",
+    "Alt",
+    "Meta",
+    "CapsLock",
+    "Tab",
+    "Escape",
+  ]);
+
+  if (ignoredKeys.has(key)) return "";
+
+  let resolvedKey = "";
+
+  if (code.startsWith("Key") && code.length === 4) {
+    resolvedKey = code.slice(3).toUpperCase();
+  } else if (code.startsWith("Digit") && code.length === 6) {
+    resolvedKey = code.slice(5);
+  } else if (codeMap[code]) {
+    resolvedKey = codeMap[code];
+  } else if (key.length === 1) {
+    resolvedKey = key.toUpperCase();
+  } else {
+    resolvedKey = key;
+  }
+
+  if (!resolvedKey) return "";
+
+  const parts: string[] = [];
+
+  const modPressed = isMacPlatform ? event.metaKey : event.ctrlKey;
+  if (modPressed) parts.push("Mod");
+
+  if (!isMacPlatform && event.metaKey) parts.push("Meta");
+  if (isMacPlatform && event.ctrlKey) parts.push("Ctrl");
+  if (event.altKey) parts.push("Alt");
+  if (event.shiftKey) parts.push("Shift");
+
+  parts.push(resolvedKey);
+
+  return normalizeHotkeyString(parts.join("+"));
+};
+
+const formatHotkeyForDisplay = (hotkey: string): string => {
+  if (!hotkey) return "Не назначено";
+
+  return hotkey
+    .split("+")
+    .map((part) => {
+      if (part === "Mod") return isMacPlatform ? "⌘" : "Ctrl";
+      if (part === "Alt") return isMacPlatform ? "⌥" : "Alt";
+      if (part === "Shift") return isMacPlatform ? "⇧" : "Shift";
+      return part;
+    })
+    .join(" + ");
+};
+
+const assignHotkey = (action: HotkeyAction, hotkeyValue: string) => {
+  const normalized = normalizeHotkeyString(hotkeyValue);
+  const next = { ...hotkeys.value };
+
+  for (const currentAction of HOTKEY_ACTIONS) {
+    if (currentAction !== action && next[currentAction] === normalized) {
+      next[currentAction] = "";
+    }
+  }
+
+  next[action] = normalized;
+  hotkeys.value = next;
+};
+
+const startHotkeyCapture = (action: HotkeyAction) => {
+  capturingHotkeyAction.value = action;
+};
+
+const resetHotkeysToDefault = () => {
+  hotkeys.value = { ...DEFAULT_HOTKEYS };
+  capturingHotkeyAction.value = null;
+};
 
 const generateId = (): string => {
   const webCrypto = globalThis.crypto;
@@ -1268,7 +2326,21 @@ const startNotesResize = (event: PointerEvent) => {
 };
 
 const syncNotesListWidthToViewport = () => {
+  isMobileViewport.value = window.innerWidth < 1024;
+
+  if (!isMobileViewport.value) {
+    mobileNotesView.value = "list";
+  }
+
   notesListWidth.value = normalizeNotesListWidth(notesListWidth.value);
+};
+
+const openNote = (noteId: string) => {
+  activeNoteId.value = noteId;
+
+  if (isMobileViewport.value) {
+    mobileNotesView.value = "editor";
+  }
 };
 
 // ── Tiptap custom nodes ───────────────────────────────────────────────────────
@@ -1595,6 +2667,28 @@ const normalizeKanbanTasks = (rawTasks: unknown[]): KanbanTask[] =>
         id: t.id,
         columnId: t.columnId,
         title: t.title.trim() || "Новая задача",
+        description:
+          t.description && typeof t.description === "object"
+            ? (t.description as JSONContent)
+            : createEmptyKanbanTaskDescription(),
+        comments: Array.isArray(t.comments)
+          ? t.comments
+              .map((comment) => {
+                if (!comment || typeof comment !== "object") return null;
+                const c = comment as Record<string, unknown>;
+                if (typeof c.id !== "string" || typeof c.text !== "string") {
+                  return null;
+                }
+
+                return {
+                  id: c.id,
+                  text: c.text,
+                  createdAt:
+                    typeof c.createdAt === "string" ? c.createdAt : nowIso(),
+                } as KanbanComment;
+              })
+              .filter((comment): comment is KanbanComment => comment !== null)
+          : [],
       } as KanbanTask;
     })
     .filter((task): task is KanbanTask => task !== null);
@@ -1619,6 +2713,11 @@ const ensureKanbanColumns = () => {
 
 const toggleColorMode = () => {
   colorMode.preference = isDark.value ? "light" : "dark";
+  void persistUiSettings();
+};
+
+const setThemePreference = (theme: ThemePreference) => {
+  colorMode.preference = theme;
   void persistUiSettings();
 };
 
@@ -1662,6 +2761,11 @@ const createDocFromText = (text: string): JSONContent => {
 };
 
 const createEmptyDoc = (): JSONContent => createDocFromText("Новая заметка");
+
+const createEmptyKanbanTaskDescription = (): JSONContent => ({
+  type: "doc",
+  content: [{ type: "paragraph" }],
+});
 
 const normalizeRawNote = (raw: unknown): Note | null => {
   if (!raw || typeof raw !== "object") return null;
@@ -1814,12 +2918,46 @@ const saveKanbanToVault = async () => {
     id: task.id,
     columnId: task.columnId,
     title: task.title,
+    description: task.description,
+    comments: task.comments,
   }));
 
   await window.electronAPI!.saveKanbanData(vaultPath.value, {
     columns: columnsPayload,
     tasks: tasksPayload,
   });
+};
+
+const saveKanbanToVaultSync = () => {
+  if (!vaultPath.value || !isElectron()) return;
+
+  const columnsPayload: KanbanColumn[] = kanbanColumns.value.map((column) => ({
+    id: column.id,
+    name: column.name,
+  }));
+  const tasksPayload: KanbanTask[] = kanbanTasks.value.map((task) => ({
+    id: task.id,
+    columnId: task.columnId,
+    title: task.title,
+    description: task.description,
+    comments: task.comments,
+  }));
+
+  window.electronAPI!.saveKanbanDataSync(vaultPath.value, {
+    columns: columnsPayload,
+    tasks: tasksPayload,
+  });
+};
+
+let kanbanSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+const flushKanbanSaveSync = () => {
+  if (kanbanSaveTimer) {
+    clearTimeout(kanbanSaveTimer);
+    kanbanSaveTimer = null;
+  }
+
+  saveKanbanToVaultSync();
 };
 
 const saveFoldersToVault = async () => {
@@ -1839,12 +2977,20 @@ const saveFoldersToVault = async () => {
 };
 
 const scheduleKanbanSave = () => {
-  if (!vaultPath.value) return;
-  void saveKanbanToVault();
+  if (!vaultPath.value || isHydratingVaultState.value) return;
+
+  if (kanbanSaveTimer) {
+    clearTimeout(kanbanSaveTimer);
+  }
+
+  kanbanSaveTimer = setTimeout(() => {
+    void saveKanbanToVault();
+    kanbanSaveTimer = null;
+  }, 500);
 };
 
 const scheduleFoldersSave = () => {
-  if (!vaultPath.value) return;
+  if (!vaultPath.value || isHydratingVaultState.value) return;
   void saveFoldersToVault();
 };
 
@@ -1898,6 +3044,7 @@ const loadVaultFiles = async (folderPath: string) => {
   if (!isElectron()) return;
 
   isLoadingVault.value = true;
+  isHydratingVaultState.value = true;
   try {
     const kanbanData = await window.electronAPI!.readKanbanData(folderPath);
     applyKanbanState(kanbanData.columns, kanbanData.tasks);
@@ -2062,6 +3209,7 @@ const loadVaultFiles = async (folderPath: string) => {
       void saveFoldersToVault();
     }
   } finally {
+    isHydratingVaultState.value = false;
     isLoadingVault.value = false;
   }
 };
@@ -2077,6 +3225,7 @@ const pickVaultFolder = async () => {
 
   vaultPath.value = selected;
   await loadVaultFiles(selected);
+  await refreshVaultSize();
 };
 
 /**
@@ -2086,7 +3235,23 @@ const clearVault = async () => {
   if (!isElectron()) return;
 
   vaultPath.value = null;
+  vaultSizeBytes.value = null;
   await window.electronAPI!.setVaultPath("");
+};
+
+const refreshVaultSize = async () => {
+  if (!isElectron() || !vaultPath.value) {
+    vaultSizeBytes.value = null;
+    return;
+  }
+
+  isLoadingVaultSize.value = true;
+  try {
+    const result = await window.electronAPI!.getFolderSize(vaultPath.value);
+    vaultSizeBytes.value = result.ok ? (result.sizeBytes ?? 0) : null;
+  } finally {
+    isLoadingVaultSize.value = false;
+  }
 };
 
 // ── Storage (localStorage fallback) ──────────────────────────────────────────
@@ -2316,26 +3481,14 @@ const confirmDeleteKanbanColumn = () => {
   cancelDeleteKanbanColumn();
 };
 
-const renameKanbanTask = async (taskId: string) => {
-  const task = kanbanTasks.value.find((item) => item.id === taskId);
-  if (!task) return;
-
-  const title = (
-    await openTextInputModal({
-      title: "Переименовать задачу",
-      placeholder: "Новое название задачи",
-      initialValue: task.title,
-      confirmLabel: "Сохранить",
-    })
-  )?.trim();
-
-  if (!title) return;
-
-  task.title = title;
-};
-
 const deleteKanbanTask = (taskId: string) => {
   kanbanTasks.value = kanbanTasks.value.filter((task) => task.id !== taskId);
+
+  if (activeKanbanTaskId.value === taskId) {
+    isKanbanTaskModalOpen.value = false;
+    activeKanbanTaskId.value = null;
+    draftKanbanComment.value = "";
+  }
 };
 
 const requestDeleteKanbanTask = (taskId: string) => {
@@ -2404,6 +3557,8 @@ const commitDraftTask = () => {
       id: generateId(),
       columnId,
       title,
+      description: createEmptyKanbanTaskDescription(),
+      comments: [],
     });
   }
 
@@ -2486,6 +3641,92 @@ const onTaskDrop = (targetColumnId: string) => {
 
   draggedTaskId.value = null;
 };
+
+const activeKanbanTask = computed(
+  () =>
+    kanbanTasks.value.find((task) => task.id === activeKanbanTaskId.value) ||
+    null,
+);
+
+const openKanbanTask = (taskId: string) => {
+  const task = kanbanTasks.value.find((item) => item.id === taskId);
+  if (!task) return;
+
+  activeKanbanTaskId.value = taskId;
+  isKanbanTaskEditMode.value = false;
+  draftKanbanComment.value = "";
+  isKanbanTaskModalOpen.value = true;
+};
+
+const addKanbanComment = () => {
+  if (!isKanbanTaskEditMode.value) return;
+
+  const task = activeKanbanTask.value;
+  const text = draftKanbanComment.value.trim();
+  if (!task || !text) return;
+
+  task.comments.push({
+    id: generateId(),
+    text,
+    createdAt: nowIso(),
+  });
+  draftKanbanComment.value = "";
+  scheduleKanbanSave();
+};
+
+const kanbanTaskEditor = useEditor({
+  content: createEmptyKanbanTaskDescription(),
+  autofocus: false,
+  editable: false,
+  extensions: [
+    StarterKit.configure({ codeBlock: false }),
+    Underline,
+    Placeholder.configure({
+      placeholder: "Добавьте описание задачи...",
+    }),
+  ],
+  editorProps: {
+    attributes: {
+      spellcheck: "true",
+      class: "note-editor focus:outline-none",
+    },
+  },
+  onUpdate: ({ editor }) => {
+    const task = activeKanbanTask.value;
+    if (!task || isApplyingKanbanTaskDescription.value) return;
+
+    task.description = editor.getJSON();
+    scheduleKanbanSave();
+  },
+});
+
+watch(
+  activeKanbanTask,
+  (task) => {
+    const taskEditor = kanbanTaskEditor.value;
+    if (!taskEditor) return;
+
+    isApplyingKanbanTaskDescription.value = true;
+    taskEditor.commands.setContent(
+      task?.description || createEmptyKanbanTaskDescription(),
+      { emitUpdate: false },
+    );
+    isApplyingKanbanTaskDescription.value = false;
+  },
+  { immediate: true },
+);
+
+watch(isKanbanTaskModalOpen, (open) => {
+  if (open) return;
+
+  activeKanbanTaskId.value = null;
+  isKanbanTaskEditMode.value = false;
+  draftKanbanComment.value = "";
+});
+
+watch(isKanbanTaskEditMode, (canEdit) => {
+  kanbanTaskEditor.value?.setEditable(canEdit);
+});
 
 // ── Notes ─────────────────────────────────────────────────────────────────────
 
@@ -2590,7 +3831,7 @@ const createNote = (folderId: string | null = null) => {
   }
 
   notes.value.unshift(note);
-  activeNoteId.value = note.id;
+  openNote(note.id);
 
   // Save to vault immediately
   if (vaultPath.value) {
@@ -2875,6 +4116,7 @@ const editor = useEditor({
       return true;
     },
     attributes: {
+      spellcheck: "true",
       class: "note-editor focus:outline-none",
     },
   },
@@ -2920,6 +4162,7 @@ const libraryPreviewEditor = useEditor({
       return true;
     },
     attributes: {
+      spellcheck: "true",
       class: "note-editor focus:outline-none",
     },
   },
@@ -2975,6 +4218,194 @@ const setLink = async () => {
 
 const clearFormatting = () => {
   editor.value?.chain().focus().clearNodes().unsetAllMarks().run();
+};
+
+const toggleBold = () => {
+  editor.value?.chain().focus().toggleBold().run();
+};
+
+const toggleItalic = () => {
+  editor.value?.chain().focus().toggleItalic().run();
+};
+
+const toggleUnderline = () => {
+  editor.value?.chain().focus().toggleUnderline().run();
+};
+
+const toggleCode = () => {
+  editor.value?.chain().focus().toggleCode().run();
+};
+
+const toggleCodeBlock = () => {
+  editor.value?.chain().focus().toggleCodeBlock().run();
+};
+
+const toggleBulletList = () => {
+  editor.value?.chain().focus().toggleBulletList().run();
+};
+
+const toggleOrderedList = () => {
+  editor.value?.chain().focus().toggleOrderedList().run();
+};
+
+const toggleBlockquote = () => {
+  editor.value?.chain().focus().toggleBlockquote().run();
+};
+
+const toggleHeadingLevel2 = () => {
+  editor.value?.chain().focus().toggleHeading({ level: 2 }).run();
+};
+
+const closeTextContextMenu = () => {
+  isTextContextMenuOpen.value = false;
+};
+
+const closeNotesContextMenu = () => {
+  isNotesContextMenuOpen.value = false;
+};
+
+const updateTextContextMenuPosition = (x: number, y: number) => {
+  const menuWidth = textContextMenuRef.value?.offsetWidth ?? 240;
+  const menuHeight = textContextMenuRef.value?.offsetHeight ?? 320;
+  const horizontalOffset = 8;
+  const verticalOffset = 8;
+
+  textContextMenuX.value = Math.max(
+    horizontalOffset,
+    Math.min(x, window.innerWidth - menuWidth - horizontalOffset),
+  );
+  textContextMenuY.value = Math.max(
+    verticalOffset,
+    Math.min(y, window.innerHeight - menuHeight - verticalOffset),
+  );
+};
+
+const updateNotesContextMenuPosition = (x: number, y: number) => {
+  const menuWidth = notesContextMenuRef.value?.offsetWidth ?? 200;
+  const menuHeight = notesContextMenuRef.value?.offsetHeight ?? 120;
+  const horizontalOffset = 8;
+  const verticalOffset = 8;
+
+  notesContextMenuX.value = Math.max(
+    horizontalOffset,
+    Math.min(x, window.innerWidth - menuWidth - horizontalOffset),
+  );
+  notesContextMenuY.value = Math.max(
+    verticalOffset,
+    Math.min(y, window.innerHeight - menuHeight - verticalOffset),
+  );
+};
+
+const onEditorContextMenu = (event: MouseEvent) => {
+  const currentEditor = editor.value;
+  if (!currentEditor || !activeNote.value) return;
+
+  event.preventDefault();
+
+  const { from, to } = currentEditor.state.selection;
+  if (from === to) {
+    closeTextContextMenu();
+    return;
+  }
+
+  closeNotesContextMenu();
+  updateTextContextMenuPosition(event.clientX, event.clientY);
+  isTextContextMenuOpen.value = true;
+
+  nextTick(() => {
+    updateTextContextMenuPosition(event.clientX, event.clientY);
+  });
+};
+
+const onNotesListContextMenu = (event: MouseEvent) => {
+  event.preventDefault();
+
+  closeTextContextMenu();
+  updateNotesContextMenuPosition(event.clientX, event.clientY);
+  isNotesContextMenuOpen.value = true;
+
+  nextTick(() => {
+    updateNotesContextMenuPosition(event.clientX, event.clientY);
+  });
+};
+
+const runTextContextAction = async (action: () => void | Promise<void>) => {
+  await action();
+  closeTextContextMenu();
+};
+
+const runNotesContextAction = async (action: () => void | Promise<void>) => {
+  await action();
+  closeNotesContextMenu();
+};
+
+const handleGlobalPointerDown = (event: PointerEvent) => {
+  const target = event.target as globalThis.Node | null;
+  if (!target) return;
+
+  if (
+    isTextContextMenuOpen.value &&
+    textContextMenuRef.value?.contains(target)
+  ) {
+    return;
+  }
+
+  if (
+    isNotesContextMenuOpen.value &&
+    notesContextMenuRef.value?.contains(target)
+  ) {
+    return;
+  }
+
+  closeTextContextMenu();
+  closeNotesContextMenu();
+};
+
+const handleGlobalEscape = (event: KeyboardEvent) => {
+  if (capturingHotkeyAction.value) {
+    event.preventDefault();
+
+    if (event.key === "Escape") {
+      capturingHotkeyAction.value = null;
+      return;
+    }
+
+    if (event.key === "Backspace" || event.key === "Delete") {
+      assignHotkey(capturingHotkeyAction.value, "");
+      capturingHotkeyAction.value = null;
+      return;
+    }
+
+    const captured = hotkeyFromKeyboardEvent(event);
+    if (!captured) return;
+
+    assignHotkey(capturingHotkeyAction.value, captured);
+    capturingHotkeyAction.value = null;
+    return;
+  }
+
+  const pressedHotkey = hotkeyFromKeyboardEvent(event);
+  if (pressedHotkey && editor.value?.isFocused) {
+    const matchedAction = HOTKEY_ACTIONS.find(
+      (action) =>
+        normalizeHotkeyString(hotkeys.value[action]) === pressedHotkey,
+    );
+
+    if (matchedAction) {
+      event.preventDefault();
+      runHotkeyAction(matchedAction);
+      return;
+    }
+  }
+
+  if (event.key !== "Escape") return;
+
+  closeTextContextMenu();
+  closeNotesContextMenu();
+};
+
+const handleWindowBeforeUnload = () => {
+  flushKanbanSaveSync();
 };
 
 const triggerFilePicker = () => {
@@ -3098,6 +4529,16 @@ const deleteTable = () => {
   editor.value?.chain().focus().deleteTable().run();
 };
 
+const syncSpellcheckToEditors = () => {
+  const spellcheckValue = isSpellcheckEnabled.value ? "true" : "false";
+
+  editor.value?.view.dom.setAttribute("spellcheck", spellcheckValue);
+  libraryPreviewEditor.value?.view.dom.setAttribute(
+    "spellcheck",
+    spellcheckValue,
+  );
+};
+
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
 
 onMounted(async () => {
@@ -3138,6 +4579,32 @@ onMounted(async () => {
   const savedNotesListWidth = Number(
     localStorage.getItem(NOTES_LIST_WIDTH_STORAGE_KEY),
   );
+
+  const savedSpellcheck = localStorage.getItem(SPELLCHECK_STORAGE_KEY);
+  if (savedSpellcheck === "true" || savedSpellcheck === "false") {
+    isSpellcheckEnabled.value = savedSpellcheck === "true";
+  }
+
+  const savedHotkeysRaw = localStorage.getItem(HOTKEYS_STORAGE_KEY);
+  if (savedHotkeysRaw) {
+    try {
+      const parsed = JSON.parse(savedHotkeysRaw) as Partial<
+        Record<HotkeyAction, string>
+      >;
+      const nextHotkeys: Record<HotkeyAction, string> = { ...DEFAULT_HOTKEYS };
+
+      for (const action of HOTKEY_ACTIONS) {
+        if (typeof parsed[action] === "string") {
+          nextHotkeys[action] = normalizeHotkeyString(parsed[action] || "");
+        }
+      }
+
+      hotkeys.value = nextHotkeys;
+    } catch {
+      hotkeys.value = { ...DEFAULT_HOTKEYS };
+    }
+  }
+
   if (Number.isFinite(savedNotesListWidth) && savedNotesListWidth > 0) {
     notesListWidth.value = savedNotesListWidth;
   }
@@ -3146,9 +4613,13 @@ onMounted(async () => {
 
   nextTick(() => {
     syncNotesListWidthToViewport();
+    syncSpellcheckToEditors();
   });
 
   window.addEventListener("resize", syncNotesListWidthToViewport);
+  window.addEventListener("pointerdown", handleGlobalPointerDown, true);
+  window.addEventListener("keydown", handleGlobalEscape);
+  window.addEventListener("beforeunload", handleWindowBeforeUnload);
 
   // Restore vault path from Electron store
   if (isElectron()) {
@@ -3156,6 +4627,7 @@ onMounted(async () => {
     if (savedVault) {
       vaultPath.value = savedVault;
       await loadVaultFiles(savedVault);
+      await refreshVaultSize();
     }
   }
 });
@@ -3163,6 +4635,9 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   stopNotesResize();
   window.removeEventListener("resize", syncNotesListWidthToViewport);
+  window.removeEventListener("pointerdown", handleGlobalPointerDown, true);
+  window.removeEventListener("keydown", handleGlobalEscape);
+  window.removeEventListener("beforeunload", handleWindowBeforeUnload);
 
   if (vaultSaveTimer) {
     clearTimeout(vaultSaveTimer);
@@ -3172,7 +4647,7 @@ onBeforeUnmount(() => {
     }
   }
 
-  void saveKanbanToVault();
+  flushKanbanSaveSync();
   void saveFoldersToVault();
 
   editor.value?.destroy();
@@ -3216,6 +4691,31 @@ watch(isLibraryNoteModalOpen, (open) => {
   if (open) return;
   if (libraryPreviewNoteId) {
     libraryPreviewNoteId.value = null;
+  }
+});
+
+watch(isSpellcheckEnabled, (enabled) => {
+  localStorage.setItem(SPELLCHECK_STORAGE_KEY, enabled ? "true" : "false");
+  syncSpellcheckToEditors();
+});
+
+watch(
+  hotkeys,
+  (value) => {
+    localStorage.setItem(HOTKEYS_STORAGE_KEY, JSON.stringify(value));
+  },
+  { deep: true },
+);
+
+watch(isSettingsModalOpen, (open) => {
+  if (open) return;
+  capturingHotkeyAction.value = null;
+});
+
+watch(leftPanel, (panel) => {
+  if (!isMobileViewport.value) return;
+  if (panel === "notes") {
+    mobileNotesView.value = "list";
   }
 });
 </script>
