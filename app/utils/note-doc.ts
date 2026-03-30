@@ -11,6 +11,141 @@ export type NoteMeta = {
   preview: string;
 };
 
+export type ParsedWikiLink = {
+  raw: string;
+  targetTitle: string;
+  heading: string | null;
+  alias: string | null;
+};
+
+const WIKI_LINK_REGEX = /\[\[([^\]\n]+)\]\]/g;
+
+export const parseWikiLinks = (plainText: string): ParsedWikiLink[] => {
+  const links: ParsedWikiLink[] = [];
+  let match: RegExpExecArray | null = null;
+
+  while ((match = WIKI_LINK_REGEX.exec(plainText)) !== null) {
+    const raw = match[0] || "";
+    const inner = (match[1] || "").trim();
+    if (!inner) continue;
+
+    const pipeIndex = inner.indexOf("|");
+    const targetAndHeading =
+      pipeIndex >= 0 ? inner.slice(0, pipeIndex).trim() : inner;
+    const aliasCandidate =
+      pipeIndex >= 0 ? inner.slice(pipeIndex + 1).trim() : "";
+    const alias = aliasCandidate || null;
+
+    const hashIndex = targetAndHeading.indexOf("#");
+    const title =
+      hashIndex >= 0
+        ? targetAndHeading.slice(0, hashIndex).trim()
+        : targetAndHeading.trim();
+    const headingCandidate =
+      hashIndex >= 0 ? targetAndHeading.slice(hashIndex + 1).trim() : "";
+    const heading = headingCandidate || null;
+
+    if (!title) continue;
+
+    links.push({
+      raw,
+      targetTitle: title,
+      heading,
+      alias,
+    });
+  }
+
+  return links;
+};
+
+export const rewriteWikiLinksTarget = (
+  plainText: string,
+  fromTitle: string,
+  toTitle: string,
+): string => {
+  const fromNormalized = fromTitle.trim().toLowerCase();
+  if (!fromNormalized || !toTitle.trim()) return plainText;
+
+  return plainText.replace(WIKI_LINK_REGEX, (fullMatch, innerRaw: string) => {
+    const inner = String(innerRaw || "").trim();
+    if (!inner) return fullMatch;
+
+    const pipeIndex = inner.indexOf("|");
+    const targetAndHeading =
+      pipeIndex >= 0 ? inner.slice(0, pipeIndex).trim() : inner;
+    const aliasCandidate =
+      pipeIndex >= 0 ? inner.slice(pipeIndex + 1).trim() : "";
+
+    const hashIndex = targetAndHeading.indexOf("#");
+    const title =
+      hashIndex >= 0
+        ? targetAndHeading.slice(0, hashIndex).trim()
+        : targetAndHeading.trim();
+    const headingCandidate =
+      hashIndex >= 0 ? targetAndHeading.slice(hashIndex + 1).trim() : "";
+
+    if (title.toLowerCase() !== fromNormalized) {
+      return fullMatch;
+    }
+
+    const rebuiltTarget = headingCandidate
+      ? `${toTitle}#${headingCandidate}`
+      : toTitle;
+    const rebuiltInner = aliasCandidate
+      ? `${rebuiltTarget}|${aliasCandidate}`
+      : rebuiltTarget;
+
+    return `[[${rebuiltInner}]]`;
+  });
+};
+
+export const rewriteWikiLinksInDoc = (
+  node: JSONContent,
+  fromTitle: string,
+  toTitle: string,
+): { doc: JSONContent; changed: boolean } => {
+  if (!node || typeof node !== "object") {
+    return { doc: node, changed: false };
+  }
+
+  let changed = false;
+
+  const rewriteNode = (current: JSONContent): JSONContent => {
+    let nextNode: JSONContent = current;
+
+    if (typeof current.text === "string") {
+      const nextText = rewriteWikiLinksTarget(current.text, fromTitle, toTitle);
+      if (nextText !== current.text) {
+        nextNode = { ...nextNode, text: nextText };
+        changed = true;
+      }
+    }
+
+    if (Array.isArray(current.content) && current.content.length) {
+      let childChanged = false;
+      const nextContent = current.content.map((child) => {
+        const rewrittenChild = rewriteNode(child);
+        if (rewrittenChild !== child) {
+          childChanged = true;
+        }
+        return rewrittenChild;
+      });
+
+      if (childChanged) {
+        nextNode = { ...nextNode, content: nextContent };
+      }
+    }
+
+    return nextNode;
+  };
+
+  const rewritten = rewriteNode(node);
+  return {
+    doc: rewritten,
+    changed,
+  };
+};
+
 export const createDocFromText = (text: string): JSONContent => {
   const normalized = text.replace(/\r\n/g, "\n").trim();
   const lines = normalized ? normalized.split("\n") : [];

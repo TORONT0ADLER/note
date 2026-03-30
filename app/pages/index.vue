@@ -181,7 +181,7 @@
                 >
                   <div
                     v-if="folderEntry.depth > 0"
-                    class="pointer-events-none absolute inset-y-0 left-1 z-10 w-0"
+                    class="pointer-events-none absolute -top-1 -bottom-1 left-1 z-10 w-0"
                     aria-hidden="true"
                   >
                     <span
@@ -193,7 +193,7 @@
                   </div>
 
                   <div
-                    class="group relative flex items-center justify-between px-1 py-0.5"
+                    class="group relative flex items-center justify-between px-1"
                   >
                     <button
                       class="flex min-w-0 items-center gap-1 text-left"
@@ -203,7 +203,7 @@
                       @click="toggleFolder(folderEntry.folder.id)"
                     >
                       <UIcon
-                        class="h-4 w-4 text-muted transition-transform"
+                        class="h-4 w-4 shrink-0 text-muted transition-transform"
                         :class="{
                           'rotate-[-90deg]': isFolderCollapsed(
                             folderEntry.folder.id,
@@ -260,17 +260,6 @@
                     v-show="!isFolderCollapsed(folderEntry.folder.id)"
                     class="relative space-y-0"
                   >
-                    <div
-                      class="pointer-events-none absolute inset-y-0 left-1 z-10 w-0"
-                      aria-hidden="true"
-                    >
-                      <span
-                        :key="`note-guide-rail-${folderEntry.folder.id}`"
-                        class="absolute inset-y-0 w-px bg-primary/30"
-                        :style="{ left: `${folderEntry.depth * 0.75}rem` }"
-                      />
-                    </div>
-
                     <div
                       v-for="note in notesInFolder(folderEntry.folder.id)"
                       :key="note.id"
@@ -541,6 +530,13 @@
                         size="xs"
                         color="neutral"
                         variant="ghost"
+                        icon="i-lucide-link-2"
+                        @mousedown.prevent="insertNoteRelation"
+                      />
+                      <UButton
+                        size="xs"
+                        color="neutral"
+                        variant="ghost"
                         icon="i-lucide-table"
                         @mousedown.prevent="insertTable"
                       />
@@ -698,6 +694,16 @@
                       @click="runTextContextAction(setLink)"
                     >
                       Ссылка
+                    </UButton>
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-link-2"
+                      class="justify-start"
+                      @click="runTextContextAction(insertNoteRelation)"
+                    >
+                      Связь заметки
                     </UButton>
                     <UButton
                       size="xs"
@@ -889,7 +895,23 @@
       </div>
 
       <div v-show="leftPanel === 'graph'" class="lg:min-w-0 lg:flex-1">
-        <GraphPanel />
+        <GraphPanel
+          :nodes="graphNodes"
+          :edges="graphEdges"
+          :active-node-id="activeNoteId"
+          :active-outgoing="activeGraphOutgoing"
+          :active-incoming="activeGraphIncoming"
+          v-model:mode="graphMode"
+          v-model:search-query="graphSearchQuery"
+          v-model:labels-mode="graphLabelsMode"
+          v-model:repulsion-strength="graphRepulsionStrength"
+          v-model:link-strength="graphLinkStrength"
+          v-model:edge-rigidity="graphEdgeRigidity"
+          v-model:node-size="graphNodeSize"
+          v-model:label-font-size="graphLabelFontSize"
+          v-model:show-direction="graphShowDirection"
+          @node-click="onGraphNodeClick"
+        />
       </div>
     </div>
 
@@ -1611,6 +1633,80 @@
     </UModal>
 
     <UModal
+      v-model:open="isNoteRelationModalOpen"
+      :ui="{
+        content:
+          'w-screen max-w-none h-[100dvh] rounded-none border-0 bg-default shadow-none sm:h-auto sm:w-auto sm:max-w-xl sm:rounded-xl sm:border sm:border-default sm:shadow-2xl',
+      }"
+    >
+      <template #header>
+        <div class="flex items-center gap-2">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-arrow-left"
+            aria-label="Назад"
+            @click="isNoteRelationModalOpen = false"
+          />
+          <p class="text-sm font-medium text-highlighted">Связь с заметкой</p>
+        </div>
+      </template>
+
+      <template #body>
+        <div class="mx-auto w-full max-w-xl space-y-3">
+          <UInput
+            ref="noteRelationInputRef"
+            v-model="noteRelationQuery"
+            class="w-full"
+            icon="i-lucide-search"
+            placeholder="Начните вводить название заметки..."
+            @keydown.enter.prevent="confirmNoteRelation"
+          />
+
+          <div class="max-h-64 space-y-1 overflow-y-auto">
+            <button
+              v-for="note in noteRelationSuggestions"
+              :key="`relation-suggestion-${note.id}`"
+              type="button"
+              class="w-full rounded-md border border-default bg-muted/20 px-3 py-2 text-left transition hover:bg-muted/40"
+              @click="selectNoteRelation(note.id)"
+            >
+              <p class="truncate text-sm font-medium text-highlighted">
+                {{ noteTitle(note) }}
+              </p>
+              <p class="mt-0.5 line-clamp-1 text-xs text-muted">
+                {{ notesMeta[note.id]?.preview || "Пустая заметка" }}
+              </p>
+            </button>
+
+            <UAlert
+              v-if="noteRelationQuery.trim() && !noteRelationSuggestions.length"
+              color="neutral"
+              variant="subtle"
+              title="Ничего не найдено"
+              description="Можно создать связь с введённым названием вручную."
+            />
+          </div>
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex w-full justify-end gap-2">
+          <UButton
+            color="neutral"
+            variant="soft"
+            @click="isNoteRelationModalOpen = false"
+          >
+            Отмена
+          </UButton>
+          <UButton color="primary" @click="confirmNoteRelation">
+            Вставить связь
+          </UButton>
+        </div>
+      </template>
+    </UModal>
+
+    <UModal
       v-model:open="isTextInputModalOpen"
       :ui="{
         content:
@@ -1688,8 +1784,11 @@ import {
   createEmptyKanbanTaskDescription,
   docToMarkdown,
   markdownToDoc,
+  parseWikiLinks,
+  rewriteWikiLinksInDoc,
   type JSONContent,
   type NoteMeta,
+  type ParsedWikiLink,
 } from "~/utils/note-doc";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -1758,6 +1857,25 @@ type TextInputModalOptions = {
 type VisibleFolder = {
   folder: Folder;
   depth: number;
+};
+
+type GraphDisplayMode = "global" | "local";
+type GraphLabelsMode = "all" | "active" | "hover";
+
+type GraphNode = {
+  id: string;
+  label: string;
+  folderId: string | null;
+  isPlaceholder: boolean;
+  incomingCount: number;
+  outgoingCount: number;
+};
+
+type GraphEdge = {
+  id: string;
+  sourceNoteId: string;
+  targetNoteId: string;
+  type: "internal_link";
 };
 
 // Electron API bridge (only available in Electron)
@@ -1838,10 +1956,12 @@ const isElectron = () => typeof window !== "undefined" && !!window.electronAPI;
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const STORAGE_KEY = "noteforge.notes.v3";
+const NOTES_TREE_UI_STATE_KEY = "noteforge.notesTree.ui.v1";
 const ACCENT_STORAGE_KEY = "noteforge.ui.accent.v1";
 const THEME_STORAGE_KEY = "noteforge.ui.theme.v1";
 const SPELLCHECK_STORAGE_KEY = "noteforge.editor.spellcheck.v1";
 const HOTKEYS_STORAGE_KEY = "noteforge.editor.hotkeys.v1";
+const GRAPH_SETTINGS_STORAGE_KEY = "noteforge.graph.settings.v1";
 const NOTES_LIST_WIDTH_STORAGE_KEY = "noteforge.ui.notesListWidth.v2";
 const NOTES_LIST_MIN_WIDTH = 220;
 const NOTES_LIST_MAX_WIDTH = 420;
@@ -1908,6 +2028,7 @@ const isDeleteFolderModalOpen = ref(false);
 const isKanbanTaskModalOpen = ref(false);
 const isKanbanTaskEditMode = ref(false);
 const isTextInputModalOpen = ref(false);
+const isNoteRelationModalOpen = ref(false);
 const isMobileViewport = ref(false);
 const mobileNotesView = ref<"list" | "editor">("list");
 const pendingDeleteColumnId = ref<string | null>(null);
@@ -1916,6 +2037,7 @@ const pendingDeleteFolderId = ref<string | null>(null);
 const activeKanbanTaskId = ref<string | null>(null);
 const draftKanbanComment = ref("");
 const textInputRef = ref<HTMLInputElement | null>(null);
+const noteRelationInputRef = ref<HTMLInputElement | null>(null);
 const textInputModalTitle = ref("");
 const textInputModalDescription = ref("");
 const textInputModalPlaceholder = ref("");
@@ -1925,6 +2047,20 @@ const textInputModalConfirmColor = ref<"primary" | "neutral">("primary");
 const textInputModalResolver = ref<((value: string | null) => void) | null>(
   null,
 );
+const noteRelationQuery = ref("");
+const graphMode = ref<GraphDisplayMode>("global");
+const graphSearchQuery = ref("");
+const graphLabelsMode = ref<GraphLabelsMode>("active");
+const graphRepulsionStrength = ref(1400);
+const graphLinkStrength = ref(0.05);
+const graphEdgeRigidity = ref(1);
+const graphNodeSize = ref(5);
+const graphLabelFontSize = ref(10);
+const graphShowDirection = ref(false);
+const wikiLinksCache = ref<
+  Map<string, { plain: string; links: ParsedWikiLink[] }>
+>(new Map());
+const isApplyingRenameSafeLinks = ref(false);
 const accentColor = ref<AccentColor>("blue");
 const notesWorkspaceRef = ref<HTMLElement | null>(null);
 const notesListWidth = ref(260);
@@ -2253,8 +2389,8 @@ const generateId = (): string => {
     const bytes = new Uint8Array(16);
     webCrypto.getRandomValues(bytes);
 
-    bytes[6] = (bytes[6] & 0x0f) | 0x40;
-    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x40;
+    bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80;
 
     const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(
       "",
@@ -2353,7 +2489,8 @@ const NoteImage = Node.create({
   parseHTML() {
     return [{ tag: "img[data-note-image='true']" }];
   },
-  renderHTML({ HTMLAttributes }) {
+  renderHTML(props) {
+    const HTMLAttributes = props.HTMLAttributes as Record<string, unknown>;
     return [
       "img",
       mergeAttributes(HTMLAttributes, {
@@ -2379,7 +2516,8 @@ const NotePdf = Node.create({
   parseHTML() {
     return [{ tag: "div[data-note-pdf='true']" }];
   },
-  renderHTML({ HTMLAttributes }) {
+  renderHTML(props) {
+    const HTMLAttributes = props.HTMLAttributes as Record<string, unknown>;
     const src = String(HTMLAttributes.src || "");
     const filename = String(HTMLAttributes.filename || "PDF");
     return [
@@ -2439,7 +2577,8 @@ const NoteFile = Node.create({
   parseHTML() {
     return [{ tag: "a[data-note-file='true']" }];
   },
-  renderHTML({ HTMLAttributes }) {
+  renderHTML(props) {
+    const HTMLAttributes = props.HTMLAttributes as Record<string, unknown>;
     const filePath = String(HTMLAttributes.path || "");
     const filename = String(HTMLAttributes.filename || "Файл");
     return [
@@ -2906,7 +3045,7 @@ const loadVaultFiles = async (folderPath: string) => {
     if (!files.length) {
       notes.value = [];
       folders.value = normalizedSavedFolders;
-      activeNoteId.value = null;
+      restoreNotesTreeUiState(folderPath);
       return;
     }
 
@@ -2977,7 +3116,7 @@ const loadVaultFiles = async (folderPath: string) => {
 
     notes.value = sortByRecent(loadedNotes);
     folders.value = loadedFolders;
-    activeNoteId.value = notes.value[0]?.id ?? null;
+    restoreNotesTreeUiState(folderPath);
 
     if (loadedFolders.length) {
       void saveFoldersToVault();
@@ -3044,7 +3183,7 @@ const loadNotes = () => {
       folders.value = [];
       kanbanColumns.value = createDefaultKanbanColumns();
       kanbanTasks.value = [];
-      activeNoteId.value = first.id;
+      restoreNotesTreeUiState(null);
       return;
     }
 
@@ -3062,7 +3201,7 @@ const loadNotes = () => {
       folders.value = [];
       kanbanColumns.value = createDefaultKanbanColumns();
       kanbanTasks.value = [];
-      activeNoteId.value = notes.value[0]?.id ?? null;
+      restoreNotesTreeUiState(null);
       return;
     } catch {
       const first = createEmptyNote();
@@ -3070,7 +3209,7 @@ const loadNotes = () => {
       folders.value = [];
       kanbanColumns.value = createDefaultKanbanColumns();
       kanbanTasks.value = [];
-      activeNoteId.value = first.id;
+      restoreNotesTreeUiState(null);
       return;
     }
   }
@@ -3126,14 +3265,14 @@ const loadNotes = () => {
     notes.value = sortByRecent(normalized);
     folders.value = sanitizedFolders;
     applyKanbanState(rawKanbanColumns, rawKanbanTasks);
-    activeNoteId.value = notes.value[0]?.id ?? null;
+    restoreNotesTreeUiState(null);
   } catch {
     const first = createEmptyNote();
     notes.value = [first];
     folders.value = [];
     kanbanColumns.value = createDefaultKanbanColumns();
     kanbanTasks.value = [];
-    activeNoteId.value = first.id;
+    restoreNotesTreeUiState(null);
   }
 };
 
@@ -3526,6 +3665,373 @@ const libraryActiveNoteTitle = computed(() =>
 const noteTitle = (note: Note) =>
   notesMeta.value[note.id]?.title || "Без названия";
 
+type NotesTreeUiState = {
+  activeNoteId: string | null;
+  collapsedFolders: string[];
+};
+
+const notesTreeUiStateStorageKey = (targetVaultPath?: string | null) => {
+  const scope = targetVaultPath ?? vaultPath.value;
+  return scope
+    ? `${NOTES_TREE_UI_STATE_KEY}:${scope}`
+    : `${NOTES_TREE_UI_STATE_KEY}:local`;
+};
+
+const loadNotesTreeUiState = (
+  targetVaultPath?: string | null,
+): NotesTreeUiState | null => {
+  const raw = localStorage.getItem(notesTreeUiStateStorageKey(targetVaultPath));
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<NotesTreeUiState>;
+    const activeId =
+      typeof parsed.activeNoteId === "string" ? parsed.activeNoteId : null;
+    const collapsed = Array.isArray(parsed.collapsedFolders)
+      ? parsed.collapsedFolders.filter(
+          (id): id is string => typeof id === "string" && !!id,
+        )
+      : [];
+
+    return {
+      activeNoteId: activeId,
+      collapsedFolders: collapsed,
+    };
+  } catch {
+    return null;
+  }
+};
+
+const restoreNotesTreeUiState = (targetVaultPath?: string | null) => {
+  const state = loadNotesTreeUiState(targetVaultPath);
+  const noteIds = new Set(notes.value.map((note) => note.id));
+  const folderIds = new Set(folders.value.map((folder) => folder.id));
+
+  collapsedFolders.value = (state?.collapsedFolders || []).filter((id) =>
+    folderIds.has(id),
+  );
+
+  const preferredActiveId = state?.activeNoteId;
+  if (preferredActiveId && noteIds.has(preferredActiveId)) {
+    activeNoteId.value = preferredActiveId;
+    return;
+  }
+
+  activeNoteId.value = notes.value[0]?.id ?? null;
+};
+
+const persistNotesTreeUiState = () => {
+  localStorage.setItem(
+    notesTreeUiStateStorageKey(),
+    JSON.stringify({
+      activeNoteId: activeNoteId.value,
+      collapsedFolders: [...new Set(collapsedFolders.value)],
+    } satisfies NotesTreeUiState),
+  );
+};
+
+const normalizeWikiTitle = (value: string) => value.trim().toLowerCase();
+
+const parseNoteLinks = (
+  noteId: string,
+  plainText: string,
+): ParsedWikiLink[] => {
+  const cached = wikiLinksCache.value.get(noteId);
+  if (cached?.plain === plainText) {
+    return cached.links;
+  }
+
+  const links = parseWikiLinks(plainText);
+  wikiLinksCache.value.set(noteId, { plain: plainText, links });
+  return links;
+};
+
+const noteTitlesById = computed<Record<string, string>>(() =>
+  Object.fromEntries(notes.value.map((note) => [note.id, noteTitle(note)])),
+);
+
+const noteExtractedLinks = computed<Record<string, ParsedWikiLink[]>>(() => {
+  const next: Record<string, ParsedWikiLink[]> = {};
+  const validIds = new Set(notes.value.map((note) => note.id));
+
+  for (const [cachedId] of wikiLinksCache.value) {
+    if (!validIds.has(cachedId)) {
+      wikiLinksCache.value.delete(cachedId);
+    }
+  }
+
+  for (const note of notes.value) {
+    const plain = notesMeta.value[note.id]?.plain || "";
+    next[note.id] = parseNoteLinks(note.id, plain);
+  }
+
+  return next;
+});
+
+const graphBase = computed(() => {
+  const nodesById = new Map<string, GraphNode>();
+  const titleToNoteId = new Map<string, string>();
+
+  for (const note of notes.value) {
+    const title = noteTitle(note);
+    const normalized = normalizeWikiTitle(title);
+    if (normalized && !titleToNoteId.has(normalized)) {
+      titleToNoteId.set(normalized, note.id);
+    }
+
+    nodesById.set(note.id, {
+      id: note.id,
+      label: title,
+      folderId: note.folderId,
+      isPlaceholder: false,
+      incomingCount: 0,
+      outgoingCount: 0,
+    });
+  }
+
+  const edges: GraphEdge[] = [];
+  const seenEdges = new Set<string>();
+  const placeholderByNormalizedTitle = new Map<string, string>();
+  const incomingById = new Map<string, Set<string>>();
+  const outgoingById = new Map<string, Set<string>>();
+
+  for (const note of notes.value) {
+    const sourceNode = nodesById.get(note.id);
+    if (!sourceNode) continue;
+
+    for (const link of noteExtractedLinks.value[note.id] || []) {
+      const normalizedTarget = normalizeWikiTitle(link.targetTitle);
+      if (!normalizedTarget) continue;
+
+      let targetId = titleToNoteId.get(normalizedTarget);
+
+      if (!targetId) {
+        targetId = placeholderByNormalizedTitle.get(normalizedTarget);
+
+        if (!targetId) {
+          targetId = `placeholder:${normalizedTarget}`;
+          placeholderByNormalizedTitle.set(normalizedTarget, targetId);
+          nodesById.set(targetId, {
+            id: targetId,
+            label: link.targetTitle,
+            folderId: null,
+            isPlaceholder: true,
+            incomingCount: 0,
+            outgoingCount: 0,
+          });
+        }
+      }
+
+      if (!targetId || targetId === note.id) continue;
+
+      const edgeId = `${note.id}->${targetId}`;
+      if (seenEdges.has(edgeId)) continue;
+      seenEdges.add(edgeId);
+
+      edges.push({
+        id: edgeId,
+        sourceNoteId: note.id,
+        targetNoteId: targetId,
+        type: "internal_link",
+      });
+
+      sourceNode.outgoingCount += 1;
+
+      const targetNode = nodesById.get(targetId);
+      if (targetNode) {
+        targetNode.incomingCount += 1;
+      }
+
+      if (!outgoingById.has(note.id)) {
+        outgoingById.set(note.id, new Set());
+      }
+      outgoingById.get(note.id)!.add(targetId);
+
+      if (!incomingById.has(targetId)) {
+        incomingById.set(targetId, new Set());
+      }
+      incomingById.get(targetId)!.add(note.id);
+    }
+  }
+
+  const nodes = Array.from(nodesById.values()).sort((a, b) => {
+    if (a.isPlaceholder !== b.isPlaceholder) {
+      return a.isPlaceholder ? 1 : -1;
+    }
+    return a.label.localeCompare(b.label, "ru");
+  });
+
+  return {
+    nodes,
+    edges,
+    incomingById,
+    outgoingById,
+  };
+});
+
+const graphVisibleNodeIds = computed(() => {
+  const allIds = new Set(graphBase.value.nodes.map((node) => node.id));
+  const activeId = activeNoteId.value;
+
+  if (graphMode.value === "local" && activeId && allIds.has(activeId)) {
+    const visible = new Set<string>([activeId]);
+
+    for (const toId of graphBase.value.outgoingById.get(activeId) || []) {
+      visible.add(toId);
+    }
+
+    for (const fromId of graphBase.value.incomingById.get(activeId) || []) {
+      visible.add(fromId);
+    }
+
+    return visible;
+  }
+
+  return allIds;
+});
+
+const graphNodes = computed<GraphNode[]>(() => {
+  const query = graphSearchQuery.value.trim().toLowerCase();
+  const visible = graphVisibleNodeIds.value;
+
+  return graphBase.value.nodes.filter((node) => {
+    if (!visible.has(node.id)) return false;
+    if (!query) return true;
+    return node.label.toLowerCase().includes(query);
+  });
+});
+
+const graphNodeIds = computed(
+  () => new Set(graphNodes.value.map((node) => node.id)),
+);
+
+const graphEdges = computed<GraphEdge[]>(() =>
+  graphBase.value.edges.filter(
+    (edge) =>
+      graphNodeIds.value.has(edge.sourceNoteId) &&
+      graphNodeIds.value.has(edge.targetNoteId),
+  ),
+);
+
+const activeGraphOutgoing = computed(() => {
+  const activeId = activeNoteId.value;
+  if (!activeId) return [];
+
+  return Array.from(graphBase.value.outgoingById.get(activeId) || []).filter(
+    (id) => graphNodeIds.value.has(id),
+  );
+});
+
+const activeGraphIncoming = computed(() => {
+  const activeId = activeNoteId.value;
+  if (!activeId) return [];
+
+  return Array.from(graphBase.value.incomingById.get(activeId) || []).filter(
+    (id) => graphNodeIds.value.has(id),
+  );
+});
+
+const onGraphNodeClick = (noteId: string) => {
+  if (noteId.startsWith("placeholder:")) return;
+  if (!notes.value.some((note) => note.id === noteId)) return;
+  leftPanel.value = "notes";
+  openNote(noteId);
+};
+
+watch(
+  noteTitlesById,
+  (next, previous) => {
+    if (isApplyingRenameSafeLinks.value) return;
+
+    const previousEntries = Object.entries(previous || {});
+    if (!previousEntries.length) return;
+
+    const renamedPairs = previousEntries
+      .map(([noteId, previousTitle]) => {
+        const nextTitle = next[noteId];
+        if (!nextTitle) return null;
+
+        const prevNormalized = normalizeWikiTitle(previousTitle);
+        const nextNormalized = normalizeWikiTitle(nextTitle);
+
+        if (
+          !prevNormalized ||
+          !nextNormalized ||
+          prevNormalized === nextNormalized
+        ) {
+          return null;
+        }
+
+        return {
+          fromTitle: previousTitle,
+          toTitle: nextTitle,
+        };
+      })
+      .filter(
+        (
+          pair,
+        ): pair is {
+          fromTitle: string;
+          toTitle: string;
+        } => pair !== null,
+      );
+
+    if (!renamedPairs.length) return;
+
+    isApplyingRenameSafeLinks.value = true;
+
+    for (const note of notes.value) {
+      let nextDoc = note.content;
+      let changed = false;
+
+      for (const pair of renamedPairs) {
+        const result = rewriteWikiLinksInDoc(
+          nextDoc,
+          pair.fromTitle,
+          pair.toTitle,
+        );
+        if (result.changed) {
+          nextDoc = result.doc;
+          changed = true;
+        }
+      }
+
+      if (!changed) continue;
+
+      note.content = nextDoc;
+      note.updatedAt = nowIso();
+
+      if (note.id === activeNoteId.value && editor.value) {
+        isApplyingContent.value = true;
+        editor.value.commands.setContent(nextDoc, { emitUpdate: false });
+        isApplyingContent.value = false;
+      }
+
+      if (vaultPath.value) {
+        scheduleVaultSave(note);
+      }
+    }
+
+    isApplyingRenameSafeLinks.value = false;
+  },
+  { deep: false },
+);
+
+const noteRelationSuggestions = computed(() => {
+  const query = noteRelationQuery.value.trim().toLowerCase();
+
+  if (!query) {
+    return notes.value.slice(0, 12);
+  }
+
+  return notes.value
+    .filter((note) => {
+      const meta = notesMeta.value[note.id];
+      return (meta?.plain || "").toLowerCase().includes(query);
+    })
+    .slice(0, 12);
+});
+
 const filteredNotes = computed(() => {
   const q = searchQuery.value.trim().toLowerCase();
   if (!q) return notes.value;
@@ -3611,6 +4117,23 @@ const createNote = (folderId: string | null = null) => {
   if (vaultPath.value) {
     void saveNoteToVault(note);
   }
+};
+
+const createLinkedNoteByTitle = (title: string): Note => {
+  const note: Note = {
+    id: generateId(),
+    folderId: activeNote.value?.folderId ?? null,
+    content: createDocFromText(title),
+    updatedAt: nowIso(),
+  };
+
+  notes.value.unshift(note);
+
+  if (vaultPath.value) {
+    void saveNoteToVault(note);
+  }
+
+  return note;
 };
 
 const createFolder = async (parentId: string | null = null) => {
@@ -3990,6 +4513,69 @@ const setLink = async () => {
   editor.value.chain().focus().setLink({ href: normalizedUrl }).run();
 };
 
+const insertNoteRelation = async () => {
+  if (!editor.value) return;
+  noteRelationQuery.value = "";
+  isNoteRelationModalOpen.value = true;
+};
+
+const applyNoteRelation = (value: string) => {
+  const currentEditor = editor.value;
+  if (!currentEditor) return;
+
+  const normalizedInput = value
+    .trim()
+    .replace(/^\[\[/, "")
+    .replace(/\]\]$/, "")
+    .trim();
+  if (!normalizedInput) return;
+
+  let targetNote = notes.value.find(
+    (note) =>
+      normalizeWikiTitle(noteTitle(note)) ===
+      normalizeWikiTitle(normalizedInput),
+  );
+
+  if (!targetNote) {
+    targetNote = createLinkedNoteByTitle(normalizedInput);
+  }
+
+  const targetTitle = noteTitle(targetNote);
+
+  currentEditor.chain().focus().insertContent(`[[${targetTitle}]]`).run();
+  isNoteRelationModalOpen.value = false;
+};
+
+const selectNoteRelation = (noteId: string) => {
+  const note = notes.value.find((item) => item.id === noteId);
+  if (!note) return;
+
+  applyNoteRelation(noteTitle(note));
+};
+
+const confirmNoteRelation = () => {
+  if (!noteRelationQuery.value.trim()) return;
+
+  const exact = notes.value.find(
+    (note) =>
+      normalizeWikiTitle(noteTitle(note)) ===
+      normalizeWikiTitle(noteRelationQuery.value),
+  );
+
+  if (exact) {
+    applyNoteRelation(noteTitle(exact));
+    return;
+  }
+
+  const firstSuggestion = noteRelationSuggestions.value[0];
+  if (firstSuggestion) {
+    applyNoteRelation(noteTitle(firstSuggestion));
+    return;
+  }
+
+  applyNoteRelation(noteRelationQuery.value);
+};
+
 const clearFormatting = () => {
   editor.value?.chain().focus().clearNodes().unsetAllMarks().run();
 };
@@ -4179,6 +4765,7 @@ const handleGlobalEscape = (event: KeyboardEvent) => {
 };
 
 const handleWindowBeforeUnload = () => {
+  persistNotesTreeUiState();
   flushKanbanSaveSync();
 };
 
@@ -4379,6 +4966,71 @@ onMounted(async () => {
     }
   }
 
+  const savedGraphSettingsRaw = localStorage.getItem(
+    GRAPH_SETTINGS_STORAGE_KEY,
+  );
+  if (savedGraphSettingsRaw) {
+    try {
+      const parsed = JSON.parse(savedGraphSettingsRaw) as Partial<{
+        mode: GraphDisplayMode;
+        searchQuery: string;
+        labelsMode: GraphLabelsMode;
+        repulsionStrength: number;
+        linkStrength: number;
+        edgeRigidity: number;
+        nodeSize: number;
+        labelFontSize: number;
+        showDirection: boolean;
+      }>;
+
+      if (parsed.mode === "global" || parsed.mode === "local") {
+        graphMode.value = parsed.mode;
+      }
+
+      if (typeof parsed.searchQuery === "string") {
+        graphSearchQuery.value = parsed.searchQuery;
+      }
+
+      if (
+        parsed.labelsMode === "all" ||
+        parsed.labelsMode === "active" ||
+        parsed.labelsMode === "hover"
+      ) {
+        graphLabelsMode.value = parsed.labelsMode;
+      }
+
+      if (typeof parsed.repulsionStrength === "number") {
+        graphRepulsionStrength.value = clamp(
+          parsed.repulsionStrength,
+          200,
+          3000,
+        );
+      }
+
+      if (typeof parsed.linkStrength === "number") {
+        graphLinkStrength.value = clamp(parsed.linkStrength, 0.01, 0.25);
+      }
+
+      if (typeof parsed.edgeRigidity === "number") {
+        graphEdgeRigidity.value = clamp(parsed.edgeRigidity, 0.2, 3);
+      }
+
+      if (typeof parsed.nodeSize === "number") {
+        graphNodeSize.value = clamp(parsed.nodeSize, 3, 12);
+      }
+
+      if (typeof parsed.labelFontSize === "number") {
+        graphLabelFontSize.value = clamp(parsed.labelFontSize, 8, 20);
+      }
+
+      if (typeof parsed.showDirection === "boolean") {
+        graphShowDirection.value = parsed.showDirection;
+      }
+    } catch {
+      // ignore invalid saved graph settings
+    }
+  }
+
   if (Number.isFinite(savedNotesListWidth) && savedNotesListWidth > 0) {
     notesListWidth.value = savedNotesListWidth;
   }
@@ -4429,6 +5081,9 @@ onBeforeUnmount(() => {
 });
 
 watch(notes, persistNotes, { deep: true });
+watch([activeNoteId, collapsedFolders, vaultPath], () => {
+  persistNotesTreeUiState();
+});
 watch(
   folders,
   () => {
@@ -4461,6 +5116,14 @@ watch(isTextInputModalOpen, (open) => {
   });
 });
 
+watch(isNoteRelationModalOpen, (open) => {
+  if (!open) return;
+
+  nextTick(() => {
+    noteRelationInputRef.value?.focus();
+  });
+});
+
 watch(isLibraryNoteModalOpen, (open) => {
   if (open) return;
   libraryPreviewNoteId.value = null;
@@ -4483,6 +5146,36 @@ watch(isSettingsModalOpen, (open) => {
   if (open) return;
   capturingHotkeyAction.value = null;
 });
+
+watch(
+  [
+    graphMode,
+    graphSearchQuery,
+    graphLabelsMode,
+    graphRepulsionStrength,
+    graphLinkStrength,
+    graphEdgeRigidity,
+    graphNodeSize,
+    graphLabelFontSize,
+    graphShowDirection,
+  ],
+  () => {
+    localStorage.setItem(
+      GRAPH_SETTINGS_STORAGE_KEY,
+      JSON.stringify({
+        mode: graphMode.value,
+        searchQuery: graphSearchQuery.value,
+        labelsMode: graphLabelsMode.value,
+        repulsionStrength: graphRepulsionStrength.value,
+        linkStrength: graphLinkStrength.value,
+        edgeRigidity: graphEdgeRigidity.value,
+        nodeSize: graphNodeSize.value,
+        labelFontSize: graphLabelFontSize.value,
+        showDirection: graphShowDirection.value,
+      }),
+    );
+  },
+);
 
 watch(leftPanel, (panel) => {
   if (!isMobileViewport.value) return;
