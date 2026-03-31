@@ -70,7 +70,7 @@
             <p class="text-xs text-muted">
               Размер шрифта: {{ labelFontSize.toFixed(0) }}
             </p>
-            <USlider v-model="labelFontSize" :min="8" :max="20" :step="1" />
+            <USlider v-model="labelFontSize" :min="4" :max="20" :step="1" />
           </div>
 
           <USwitch

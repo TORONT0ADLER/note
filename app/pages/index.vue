@@ -2021,6 +2021,7 @@ const draftTask = ref<{ columnId: string; title: string } | null>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const activeNoteId = ref<string | null>(null);
 const isApplyingContent = ref(false);
+const noteUndoBaselineById = ref<Record<string, string>>({});
 const isDeleteModalOpen = ref(false);
 const isDeleteKanbanColumnModalOpen = ref(false);
 const isDeleteKanbanTaskModalOpen = ref(false);
@@ -4483,6 +4484,11 @@ watch(
     isApplyingContent.value = true;
     editor.value.commands.setContent(note.content, { emitUpdate: false });
     isApplyingContent.value = false;
+
+    noteUndoBaselineById.value = {
+      ...noteUndoBaselineById.value,
+      [note.id]: JSON.stringify(note.content),
+    };
   },
   { immediate: true },
 );
@@ -4722,6 +4728,41 @@ const handleGlobalPointerDown = (event: PointerEvent) => {
 };
 
 const handleGlobalEscape = (event: KeyboardEvent) => {
+  const isUndoShortcut =
+    (event.metaKey || event.ctrlKey) &&
+    !event.shiftKey &&
+    event.key.toLowerCase() === "z";
+  const isRedoShortcut =
+    ((event.metaKey || event.ctrlKey) &&
+      event.shiftKey &&
+      event.key.toLowerCase() === "z") ||
+    (!isMacPlatform && event.ctrlKey && event.key.toLowerCase() === "y");
+
+  if (editor.value?.isFocused && isUndoShortcut) {
+    event.preventDefault();
+
+    const activeId = activeNoteId.value;
+    if (!activeId || !editor.value) return;
+
+    const currentSignature = JSON.stringify(editor.value.getJSON());
+    const baselineSignature = noteUndoBaselineById.value[activeId];
+
+    // Важно: не даём undo уйти «ниже» базового состояния заметки,
+    // чтобы лишние Cmd/Ctrl+Z не очищали заметку полностью.
+    if (!baselineSignature || currentSignature === baselineSignature) {
+      return;
+    }
+
+    editor.value.commands.undo();
+    return;
+  }
+
+  if (editor.value?.isFocused && isRedoShortcut) {
+    event.preventDefault();
+    editor.value.commands.redo();
+    return;
+  }
+
   if (capturingHotkeyAction.value) {
     event.preventDefault();
 
@@ -5020,7 +5061,7 @@ onMounted(async () => {
       }
 
       if (typeof parsed.labelFontSize === "number") {
-        graphLabelFontSize.value = clamp(parsed.labelFontSize, 8, 20);
+        graphLabelFontSize.value = clamp(parsed.labelFontSize, 4, 20);
       }
 
       if (typeof parsed.showDirection === "boolean") {
