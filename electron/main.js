@@ -13,6 +13,7 @@ const KANBAN_FILE_NAME = `${TASKS_DIR}/kanban.json`;
 const FOLDERS_FILE_NAME = `${TASKS_DIR}/folders.json`;
 const LEGACY_KANBAN_FILE_NAME = ".noteforge-kanban.json";
 const LEGACY_FOLDERS_FILE_NAME = ".noteforge-folders.json";
+const NOTES_TREE_STATE_FILE_NAME = "notes-tree-ui-state.json";
 let uiSettings = {
   theme: "dark",
   accent: "blue",
@@ -187,6 +188,36 @@ const saveUiSettings = (settings) => {
   }
 };
 
+const getNotesTreeStatePath = () =>
+  path.join(app.getPath("userData"), NOTES_TREE_STATE_FILE_NAME);
+
+const readNotesTreeStateStore = () => {
+  try {
+    const statePath = getNotesTreeStatePath();
+    if (!fs.existsSync(statePath)) return {};
+
+    const raw = fs.readFileSync(statePath, "utf-8");
+    const parsed = JSON.parse(raw);
+
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {};
+    }
+
+    return parsed;
+  } catch {
+    return {};
+  }
+};
+
+const writeNotesTreeStateStore = (store) => {
+  try {
+    const statePath = getNotesTreeStatePath();
+    fs.writeFileSync(statePath, JSON.stringify(store), "utf-8");
+  } catch (err) {
+    console.error("Failed to save notes tree ui state:", err);
+  }
+};
+
 function startStaticServer() {
   return new Promise((resolve, reject) => {
     const publicPath = path.join(__dirname, "../.output/public");
@@ -273,6 +304,20 @@ ipcMain.handle("set-ui-settings", (_event, settings) => {
   saveUiSettings(nextSettings);
 
   return nextSettings;
+});
+
+ipcMain.handle("get-notes-tree-state", () => readNotesTreeStateStore());
+
+ipcMain.handle("set-notes-tree-state", (_event, key, state) => {
+  if (!key || typeof key !== "string") {
+    return { ok: false, error: "Invalid state key" };
+  }
+
+  const store = readNotesTreeStateStore();
+  store[key] = state;
+  writeNotesTreeStateStore(store);
+
+  return { ok: true };
 });
 
 ipcMain.handle("set-vault-path", (_event, folderPath) => {

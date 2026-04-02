@@ -250,6 +250,27 @@ export const docToMarkdown = (node: JSONContent, listDepth = 0): string => {
     case "horizontalRule":
       return "---\n\n";
 
+    case "noteImage": {
+      const src = String(node.attrs?.src || "").trim();
+      const alt = String(node.attrs?.alt || "").trim();
+      if (!src) return "";
+      return `![${alt}](${src})\n\n`;
+    }
+
+    case "noteFile": {
+      const path = String(node.attrs?.path || "").trim();
+      const filename = String(node.attrs?.filename || "Файл").trim() || "Файл";
+      if (!path) return "";
+      return `[📎 ${filename}](${path})\n\n`;
+    }
+
+    case "notePdf": {
+      const src = String(node.attrs?.src || "").trim();
+      const filename = String(node.attrs?.filename || "PDF").trim() || "PDF";
+      if (!src) return "";
+      return `[📎 ${filename}](${src})\n\n`;
+    }
+
     default:
       return children;
   }
@@ -260,8 +281,51 @@ export const markdownToDoc = (md: string): JSONContent => {
   const content: JSONContent[] = [];
   let i = 0;
 
+  const imageRegex = /^!\[(.*)\]\((.+)\)$/;
+  const fileRegex = /^\[📎\s*(.+?)\]\((.+)\)$/;
+
   while (i < lines.length) {
     const line = lines[i]!;
+
+    const imageMatch = line.match(imageRegex);
+    if (imageMatch) {
+      const alt = (imageMatch[1] || "").trim();
+      const src = (imageMatch[2] || "").trim();
+
+      if (src) {
+        content.push({
+          type: "noteImage",
+          attrs: {
+            src,
+            alt: alt || null,
+            title: alt || null,
+          },
+        });
+      }
+
+      i++;
+      continue;
+    }
+
+    const fileMatch = line.match(fileRegex);
+    if (fileMatch) {
+      const filename = (fileMatch[1] || "Файл").trim() || "Файл";
+      const path = (fileMatch[2] || "").trim();
+
+      if (path) {
+        content.push({
+          type: "noteFile",
+          attrs: {
+            path,
+            filename,
+            mime: "application/octet-stream",
+          },
+        });
+      }
+
+      i++;
+      continue;
+    }
 
     if (line.startsWith("```")) {
       const lang = line.slice(3).trim();

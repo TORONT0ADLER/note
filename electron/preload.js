@@ -3,6 +3,9 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("electronAPI", {
   getUiSettings: () => ipcRenderer.invoke("get-ui-settings"),
   setUiSettings: (settings) => ipcRenderer.invoke("set-ui-settings", settings),
+  getNotesTreeState: () => ipcRenderer.invoke("get-notes-tree-state"),
+  setNotesTreeState: (key, state) =>
+    ipcRenderer.invoke("set-notes-tree-state", key, state),
   selectFolder: () => ipcRenderer.invoke("select-folder"),
   selectFiles: () => ipcRenderer.invoke("select-files"),
   getFolderSize: (folderPath) =>

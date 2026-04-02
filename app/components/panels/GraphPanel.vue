@@ -470,7 +470,8 @@ const positionedNodes = computed(() => {
       labelsMode.value === "all" ||
       (labelsMode.value === "active" &&
         (isActive || isNeighbor || isMatched)) ||
-      (labelsMode.value === "hover" && (isHovered || isActive || isMatched));
+      (labelsMode.value === "hover" &&
+        (isHovered || isNeighborOfHovered || isMatched));
 
     return {
       ...node,

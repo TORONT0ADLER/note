@@ -146,61 +146,56 @@
                   <div
                     v-for="note in rootFilteredNotes"
                     :key="note.id"
-                    class="group flex items-center gap-1 rounded px-1 transition"
+                    :data-context-note-id="note.id"
+                    class="group relative flex items-center gap-1 rounded px-1 transition"
                     :class="
-                      activeNoteId === note.id
-                        ? 'bg-primary/10'
-                        : 'hover:bg-muted/30'
+                      selectedTreeItem?.type === 'note' &&
+                      selectedTreeItem.id === note.id
+                        ? 'bg-primary/8 ring-1 ring-inset ring-primary/20'
+                        : 'hover:bg-muted/15'
                     "
                   >
                     <button
-                      class="min-w-0 flex-1 px-1 py-1.5 text-left"
+                      class="min-w-0 flex-1 px-1 py-1.5 pr-8 text-left"
                       @click="openNote(note.id)"
                     >
-                      <p class="truncate text-sm font-medium text-highlighted">
+                      <p
+                        class="min-w-0 truncate text-md font-medium text-highlighted"
+                      >
                         {{ noteTitle(note) }}
                       </p>
                     </button>
-
-                    <UButton
-                      size="xs"
-                      color="error"
-                      variant="ghost"
-                      icon="i-lucide-trash-2"
-                      aria-label="Удалить заметку"
-                      class="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
-                      @click.stop="requestDeleteNote(note.id)"
-                    />
                   </div>
                 </div>
 
                 <div
                   v-for="folderEntry in visibleFolders"
                   :key="folderEntry.folder.id"
-                  class="relative"
+                  :data-context-folder-id="folderEntry.folder.id"
+                  class="relative overflow-hidden"
                 >
                   <div
-                    v-if="folderEntry.depth > 0"
-                    class="pointer-events-none absolute -top-1 -bottom-1 left-1 z-10 w-0"
-                    aria-hidden="true"
+                    class="group relative z-10 flex items-center rounded px-1 transition"
+                    :class="
+                      selectedTreeItem?.type === 'folder' &&
+                      selectedTreeItem.id === folderEntry.folder.id
+                        ? 'bg-primary/8 ring-1 ring-inset ring-primary/20'
+                        : 'hover:bg-muted/15'
+                    "
                   >
-                    <span
-                      v-for="level in folderEntry.depth"
-                      :key="`folder-guide-${folderEntry.folder.id}-${level}`"
-                      class="absolute inset-y-0 w-px bg-primary/35"
-                      :style="{ left: `${(level - 1) * 0.75}rem` }"
+                    <div
+                      v-if="folderEntry.depth > 0"
+                      class="pointer-events-none absolute inset-y-0 left-0 z-0"
+                      :style="treeRowGuideStyle(folderEntry.depth)"
+                      aria-hidden="true"
                     />
-                  </div>
 
-                  <div
-                    class="group relative flex items-center justify-between px-1"
-                  >
                     <button
-                      class="flex min-w-0 items-center gap-1 text-left"
+                      class="relative z-10 flex min-w-0 flex-1 items-center gap-1 text-left"
                       :style="{
-                        paddingLeft: `${0.5 + folderEntry.depth * 0.75}rem`,
+                        paddingLeft: `${TREE_BASE_PADDING_REM + folderEntry.depth * TREE_LEVEL_STEP_REM}rem`,
                       }"
-                      @click="toggleFolder(folderEntry.folder.id)"
+                      @click="onFolderClick(folderEntry.folder.id)"
                     >
                       <UIcon
                         class="h-4 w-4 shrink-0 text-muted transition-transform"
@@ -212,48 +207,11 @@
                         name="i-lucide-chevron-down"
                       />
                       <p
-                        class="truncate text-xs font-medium uppercase tracking-wide text-muted"
+                        class="min-w-0 flex-1 truncate text-md font-medium text-highlighted"
                       >
                         {{ folderEntry.folder.name }}
                       </p>
                     </button>
-
-                    <div
-                      class="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
-                    >
-                      <UButton
-                        size="xs"
-                        color="neutral"
-                        variant="ghost"
-                        icon="i-lucide-pencil"
-                        aria-label="Переименовать папку"
-                        @click="renameFolder(folderEntry.folder.id)"
-                      />
-                      <UButton
-                        size="xs"
-                        color="neutral"
-                        variant="ghost"
-                        icon="i-lucide-folder-plus"
-                        aria-label="Создать подпапку"
-                        @click="createFolder(folderEntry.folder.id)"
-                      />
-                      <UButton
-                        size="xs"
-                        color="neutral"
-                        variant="ghost"
-                        icon="i-lucide-file-plus"
-                        aria-label="Создать заметку в папке"
-                        @click="createNote(folderEntry.folder.id)"
-                      />
-                      <UButton
-                        size="xs"
-                        color="error"
-                        variant="ghost"
-                        icon="i-lucide-trash-2"
-                        aria-label="Удалить папку"
-                        @click="requestDeleteFolder(folderEntry.folder.id)"
-                      />
-                    </div>
                   </div>
 
                   <div
@@ -263,36 +221,34 @@
                     <div
                       v-for="note in notesInFolder(folderEntry.folder.id)"
                       :key="note.id"
-                      class="group relative flex items-center gap-1 rounded px-1 transition"
+                      :data-context-note-id="note.id"
+                      class="group relative z-10 flex items-center gap-1 rounded px-1 transition"
                       :class="
-                        activeNoteId === note.id
-                          ? 'bg-primary/10'
-                          : 'hover:bg-muted/30'
+                        selectedTreeItem?.type === 'note' &&
+                        selectedTreeItem.id === note.id
+                          ? 'bg-primary/8 ring-1 ring-inset ring-primary/20'
+                          : 'hover:bg-muted/15'
                       "
                     >
+                      <div
+                        class="pointer-events-none absolute inset-y-0 left-0 z-0"
+                        :style="treeRowGuideStyle(folderEntry.depth + 1)"
+                        aria-hidden="true"
+                      />
+
                       <button
-                        class="min-w-0 flex-1 px-1 py-1.5 text-left"
+                        class="min-w-0 flex-1 px-1 py-1.5 pr-8 text-left"
                         :style="{
-                          paddingLeft: `${0.5 + (folderEntry.depth + 1) * 0.75}rem`,
+                          paddingLeft: `${TREE_BASE_PADDING_REM + (folderEntry.depth + 1) * TREE_LEVEL_STEP_REM}rem`,
                         }"
                         @click="openNote(note.id)"
                       >
                         <p
-                          class="truncate text-sm font-medium text-highlighted"
+                          class="min-w-0 truncate text-md font-medium text-highlighted"
                         >
                           {{ noteTitle(note) }}
                         </p>
                       </button>
-
-                      <UButton
-                        size="xs"
-                        color="error"
-                        variant="ghost"
-                        icon="i-lucide-trash-2"
-                        aria-label="Удалить заметку"
-                        class="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
-                        @click.stop="requestDeleteNote(note.id)"
-                      />
                     </div>
                   </div>
                 </div>
@@ -300,35 +256,31 @@
                 <div
                   v-for="note in orphanFilteredNotes"
                   :key="note.id"
-                  class="group flex items-center gap-1 rounded px-1 transition"
+                  :data-context-note-id="note.id"
+                  class="group relative flex items-center gap-1 rounded px-1 transition"
                   :class="
-                    activeNoteId === note.id
-                      ? 'bg-primary/10'
-                      : 'hover:bg-muted/30'
+                    selectedTreeItem?.type === 'note' &&
+                    selectedTreeItem.id === note.id
+                      ? 'bg-primary/8 ring-1 ring-inset ring-primary/20'
+                      : 'hover:bg-muted/15'
                   "
                 >
                   <button
-                    class="min-w-0 flex-1 px-1 py-1.5 text-left"
+                    class="min-w-0 flex-1 px-1 py-1.5 pr-8 text-left"
                     @click="openNote(note.id)"
                   >
-                    <p class="truncate text-sm font-medium text-highlighted">
+                    <p
+                      class="min-w-0 truncate text-md font-medium text-highlighted"
+                    >
                       {{ noteTitle(note) }}
                     </p>
                   </button>
-
-                  <UButton
-                    size="xs"
-                    color="error"
-                    variant="ghost"
-                    icon="i-lucide-trash-2"
-                    aria-label="Удалить заметку"
-                    class="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
-                    @click.stop="requestDeleteNote(note.id)"
-                  />
                 </div>
 
                 <UAlert
-                  v-if="!filteredNotes.length"
+                  v-if="
+                    !filteredNotes.length && !folders.length && !notes.length
+                  "
                   color="neutral"
                   variant="subtle"
                   title="Ничего не найдено"
@@ -338,10 +290,97 @@
                 <div
                   v-if="isNotesContextMenuOpen"
                   ref="notesContextMenuRef"
-                  class="fixed z-[120] min-w-48 rounded-md border border-default bg-default p-1 shadow-lg"
+                  class="fixed z-[120] min-w-56 rounded-md border border-default bg-default p-1 shadow-lg"
                   :style="notesContextMenuStyle"
                 >
-                  <div class="flex flex-col gap-0.5">
+                  <div
+                    v-if="
+                      notesContextTargetType === 'folder' &&
+                      notesContextTargetId
+                    "
+                    class="flex flex-col gap-0.5"
+                  >
+                    <UButton
+                      size="sm"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-pencil"
+                      class="justify-start"
+                      @click="
+                        runNotesContextAction(() =>
+                          renameFolder(notesContextTargetId!),
+                        )
+                      "
+                    >
+                      Переименовать папку
+                    </UButton>
+                    <UButton
+                      size="sm"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-folder-plus"
+                      class="justify-start"
+                      @click="
+                        runNotesContextAction(() =>
+                          createFolder(notesContextTargetId!),
+                        )
+                      "
+                    >
+                      Создать подпапку
+                    </UButton>
+                    <UButton
+                      size="sm"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-file-plus"
+                      class="justify-start"
+                      @click="
+                        runNotesContextAction(() =>
+                          createNote(notesContextTargetId!),
+                        )
+                      "
+                    >
+                      Создать заметку в папке
+                    </UButton>
+                    <UButton
+                      size="sm"
+                      color="error"
+                      variant="ghost"
+                      icon="i-lucide-trash-2"
+                      class="justify-start"
+                      @click="
+                        runNotesContextAction(() =>
+                          requestDeleteFolder(notesContextTargetId!),
+                        )
+                      "
+                    >
+                      Удалить папку
+                    </UButton>
+                  </div>
+
+                  <div
+                    v-else-if="
+                      notesContextTargetType === 'note' && notesContextTargetId
+                    "
+                    class="flex flex-col gap-0.5"
+                  >
+                    <UButton
+                      size="sm"
+                      color="error"
+                      variant="ghost"
+                      icon="i-lucide-trash-2"
+                      class="justify-start"
+                      @click="
+                        runNotesContextAction(() =>
+                          requestDeleteNote(notesContextTargetId!),
+                        )
+                      "
+                    >
+                      Удалить заметку
+                    </UButton>
+                  </div>
+
+                  <div v-else class="flex flex-col gap-0.5">
                     <UButton
                       size="sm"
                       color="neutral"
@@ -1407,7 +1446,9 @@
         </div>
       </template>
       <template #body>
-        <div class="h-full grid grid-rows-[auto_minmax(0,1fr)] gap-3">
+        <div
+          class="h-[calc(100dvh-8.5rem)] min-h-0 grid grid-rows-[auto_minmax(0,1fr)] gap-3 sm:h-[calc(84vh-8rem)]"
+        >
           <div class="flex items-center gap-2">
             <UInput
               v-if="isKanbanTaskEditMode && activeKanbanTask"
@@ -1437,7 +1478,7 @@
           </div>
 
           <div class="min-h-0 grid gap-3 lg:grid-cols-[minmax(0,1fr)_360px]">
-            <UCard class="min-h-0 overflow-hidden">
+            <UCard class="min-h-0 flex flex-col overflow-hidden">
               <template #header>
                 <div
                   v-if="isKanbanTaskEditMode"
@@ -1522,7 +1563,9 @@
                 </div>
               </template>
 
-              <div class="h-full overflow-y-auto">
+              <div
+                class="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1"
+              >
                 <EditorContent
                   v-if="kanbanTaskEditor"
                   :editor="kanbanTaskEditor"
@@ -1531,13 +1574,15 @@
               </div>
             </UCard>
 
-            <UCard class="min-h-0 overflow-hidden">
+            <UCard class="min-h-0 flex flex-col overflow-hidden">
               <template #header>
                 <p class="text-sm font-medium text-highlighted">Комментарии</p>
               </template>
 
-              <div class="flex h-full flex-col gap-3">
-                <div class="min-h-0 flex-1 space-y-2 overflow-y-auto">
+              <div class="min-h-0 flex flex-1 flex-col gap-3">
+                <div
+                  class="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain"
+                >
                   <div
                     v-for="comment in activeKanbanTask?.comments || []"
                     :key="comment.id"
@@ -1761,9 +1806,14 @@
 </template>
 
 <script setup lang="ts">
-import { EditorContent, useEditor } from "@tiptap/vue-3";
-import { mergeAttributes, Node } from "@tiptap/core";
-import { NodeSelection } from "@tiptap/pm/state";
+import {
+  EditorContent,
+  Extension,
+  isNodeSelection,
+  mergeAttributes,
+  Node,
+  useEditor,
+} from "@tiptap/vue-3";
 import TasksPanel from "~/components/panels/TasksPanel.vue";
 import GraphPanel from "~/components/panels/GraphPanel.vue";
 import Link from "@tiptap/extension-link";
@@ -1859,6 +1909,11 @@ type VisibleFolder = {
   depth: number;
 };
 
+type TreeSelection = {
+  type: "folder" | "note";
+  id: string;
+} | null;
+
 type GraphDisplayMode = "global" | "local";
 type GraphLabelsMode = "all" | "active" | "hover";
 
@@ -1885,6 +1940,11 @@ interface ElectronAPI {
     theme: string;
     accent: string;
   }) => Promise<{ theme?: string; accent?: string }>;
+  getNotesTreeState: () => Promise<Record<string, unknown>>;
+  setNotesTreeState: (
+    key: string,
+    state: unknown,
+  ) => Promise<{ ok: boolean; error?: string }>;
   selectFolder: () => Promise<string | null>;
   selectFiles: () => Promise<string[]>;
   getFolderSize: (
@@ -1968,6 +2028,9 @@ const NOTES_LIST_MAX_WIDTH = 420;
 const NOTES_EDITOR_MIN_WIDTH = 360;
 const NOTES_RESIZER_WIDTH = 16;
 const NOTES_PANES_GAP = 8;
+const TREE_BASE_PADDING_REM = 0.75;
+const TREE_LEVEL_STEP_REM = 1.05;
+const TREE_CHEVRON_CENTER_REM = TREE_BASE_PADDING_REM + 0.72;
 const lowlight = createLowlight(common);
 
 const HOTKEY_ACTIONS: HotkeyAction[] = [
@@ -2078,6 +2141,9 @@ const isNotesContextMenuOpen = ref(false);
 const notesContextMenuRef = ref<HTMLElement | null>(null);
 const notesContextMenuX = ref(0);
 const notesContextMenuY = ref(0);
+const notesContextTargetType = ref<"note" | "folder" | null>(null);
+const notesContextTargetId = ref<string | null>(null);
+const selectedTreeItem = ref<TreeSelection>(null);
 const isSettingsModalOpen = ref(false);
 const settingsSection = ref<SettingsSection>("appearance");
 const isSpellcheckEnabled = ref(true);
@@ -2087,6 +2153,7 @@ const vaultSizeBytes = ref<number | null>(null);
 const isLoadingVaultSize = ref(false);
 const isApplyingKanbanTaskDescription = ref(false);
 const isHydratingVaultState = ref(false);
+const notesTreeStateStore = ref<Record<string, unknown>>({});
 
 // Vault state
 const vaultPath = ref<string | null>(null);
@@ -2466,6 +2533,7 @@ const syncNotesListWidthToViewport = () => {
 
 const openNote = (noteId: string) => {
   activeNoteId.value = noteId;
+  selectedTreeItem.value = { type: "note", id: noteId };
 
   if (isMobileViewport.value) {
     mobileNotesView.value = "editor";
@@ -2561,7 +2629,7 @@ const NoteFile = Node.create({
       const { selection } = this.editor.state;
 
       if (
-        selection instanceof NodeSelection &&
+        isNodeSelection(selection) &&
         selection.node.type.name === this.name
       ) {
         return this.editor.commands.deleteSelection();
@@ -2757,6 +2825,73 @@ const sortByRecent = (items: Note[]) =>
 
 const sanitizeVaultPathSegment = (value: string) =>
   value.replace(/[/\\:*?"<>|]/g, "_").trim();
+
+const extractPlainTextFromDocNode = (node: JSONContent | undefined): string => {
+  if (!node || typeof node !== "object") return "";
+  if (typeof node.text === "string") return node.text;
+
+  const children = Array.isArray(node.content) ? node.content : [];
+  return children.map(extractPlainTextFromDocNode).join("");
+};
+
+const createHeadingNode = (text: string): JSONContent => ({
+  type: "heading",
+  attrs: { level: 1 },
+  content: text ? [{ type: "text", text }] : [],
+});
+
+const ensureTitleAndBodyStructure = (
+  doc: JSONContent,
+): { doc: JSONContent; changed: boolean } => {
+  if (!doc || doc.type !== "doc") {
+    return {
+      doc: {
+        type: "doc",
+        content: [createHeadingNode(""), { type: "paragraph" }],
+      },
+      changed: true,
+    };
+  }
+
+  const incoming = Array.isArray(doc.content) ? [...doc.content] : [];
+  let changed = !Array.isArray(doc.content);
+
+  const firstNode = incoming[0];
+  const firstIsHeadingLevel1 =
+    firstNode?.type === "heading" && firstNode?.attrs?.level === 1;
+
+  if (!firstIsHeadingLevel1) {
+    const titleText = extractPlainTextFromDocNode(firstNode).trim();
+    incoming[0] = createHeadingNode(titleText);
+    changed = true;
+  } else if (!Array.isArray(firstNode.content)) {
+    incoming[0] = {
+      ...firstNode,
+      attrs: { ...(firstNode.attrs || {}), level: 1 },
+      content: [],
+    };
+    changed = true;
+  }
+
+  const secondNode = incoming[1];
+  if (!secondNode || secondNode.type !== "paragraph") {
+    incoming.splice(1, 0, { type: "paragraph" });
+    changed = true;
+  }
+
+  if (!changed) {
+    return { doc, changed: false };
+  }
+
+  return {
+    doc: {
+      ...doc,
+      type: "doc",
+      content: incoming,
+    },
+    changed: true,
+  };
+};
 
 const noteStoredFilename = (note: Note): string => {
   if (note.relativePath) {
@@ -3614,6 +3749,48 @@ const kanbanTaskEditor = useEditor({
   },
 });
 
+const NoteTitleBarrier = Extension.create({
+  name: "noteTitleBarrier",
+  addKeyboardShortcuts() {
+    const isAtTitleBodyBoundary = () => {
+      const { selection, doc } = this.editor.state;
+      if (!selection.empty) return false;
+
+      const { $from } = selection;
+      if ($from.depth !== 1) return false;
+
+      const firstNode = doc.firstChild;
+      if (!firstNode || firstNode.type.name !== "heading") return false;
+      if (firstNode.attrs.level !== 1) return false;
+
+      return true;
+    };
+
+    return {
+      Backspace: () => {
+        if (!isAtTitleBodyBoundary()) return false;
+
+        const { $from } = this.editor.state.selection;
+        const isStartOfBody = $from.index(0) === 1 && $from.parentOffset === 0;
+        if (!isStartOfBody) return false;
+
+        return true;
+      },
+      Delete: () => {
+        if (!isAtTitleBodyBoundary()) return false;
+
+        const { $from } = this.editor.state.selection;
+        const isEndOfTitle =
+          $from.index(0) === 0 &&
+          $from.parentOffset === $from.parent.content.size;
+        if (!isEndOfTitle) return false;
+
+        return true;
+      },
+    };
+  },
+});
+
 watch(
   activeKanbanTask,
   (task) => {
@@ -3668,7 +3845,9 @@ const noteTitle = (note: Note) =>
 
 type NotesTreeUiState = {
   activeNoteId: string | null;
+  activeNoteRef?: string | null;
   collapsedFolders: string[];
+  collapsedFolderRefs?: string[];
 };
 
 const notesTreeUiStateStorageKey = (targetVaultPath?: string | null) => {
@@ -3681,7 +3860,15 @@ const notesTreeUiStateStorageKey = (targetVaultPath?: string | null) => {
 const loadNotesTreeUiState = (
   targetVaultPath?: string | null,
 ): NotesTreeUiState | null => {
-  const raw = localStorage.getItem(notesTreeUiStateStorageKey(targetVaultPath));
+  const key = notesTreeUiStateStorageKey(targetVaultPath);
+  const rawFromStore = notesTreeStateStore.value[key];
+  const raw =
+    typeof rawFromStore === "string"
+      ? rawFromStore
+      : rawFromStore
+        ? JSON.stringify(rawFromStore)
+        : localStorage.getItem(key);
+
   if (!raw) return null;
 
   try {
@@ -3694,23 +3881,91 @@ const loadNotesTreeUiState = (
         )
       : [];
 
+    const collapsedRefs = Array.isArray(parsed.collapsedFolderRefs)
+      ? parsed.collapsedFolderRefs.filter(
+          (ref): ref is string => typeof ref === "string" && !!ref,
+        )
+      : [];
+
+    const activeNoteRef =
+      typeof parsed.activeNoteRef === "string" ? parsed.activeNoteRef : null;
+
     return {
       activeNoteId: activeId,
+      activeNoteRef,
       collapsedFolders: collapsed,
+      collapsedFolderRefs: collapsedRefs,
     };
   } catch {
     return null;
   }
 };
 
+const folderReferenceById = computed(() => {
+  const byId = new Map(folders.value.map((folder) => [folder.id, folder]));
+  const cache = new Map<string, string>();
+
+  const resolve = (folderId: string): string => {
+    const cached = cache.get(folderId);
+    if (cached !== undefined) return cached;
+
+    const visited = new Set<string>();
+    const segments: string[] = [];
+    let currentId: string | null = folderId;
+
+    while (currentId) {
+      if (visited.has(currentId)) break;
+      visited.add(currentId);
+
+      const folder = byId.get(currentId);
+      if (!folder) break;
+
+      segments.unshift(folder.name || folder.id);
+      currentId = folder.parentId;
+    }
+
+    const pathRef = segments.join("/");
+    cache.set(folderId, pathRef);
+    return pathRef;
+  };
+
+  for (const folder of folders.value) {
+    resolve(folder.id);
+  }
+
+  return cache;
+});
+
 const restoreNotesTreeUiState = (targetVaultPath?: string | null) => {
   const state = loadNotesTreeUiState(targetVaultPath);
   const noteIds = new Set(notes.value.map((note) => note.id));
   const folderIds = new Set(folders.value.map((folder) => folder.id));
+  const folderIdByReference = new Map<string, string>();
 
-  collapsedFolders.value = (state?.collapsedFolders || []).filter((id) =>
-    folderIds.has(id),
-  );
+  for (const [folderId, folderRef] of folderReferenceById.value.entries()) {
+    if (folderRef) {
+      folderIdByReference.set(folderRef, folderId);
+    }
+  }
+
+  const collapsedFromRefs = (state?.collapsedFolderRefs || [])
+    .map((ref) => {
+      if (ref.startsWith("id:")) {
+        return ref.slice(3);
+      }
+
+      if (ref.startsWith("path:")) {
+        return folderIdByReference.get(ref.slice(5)) || null;
+      }
+
+      return folderIdByReference.get(ref) || null;
+    })
+    .filter((id): id is string => !!id);
+
+  collapsedFolders.value = [
+    ...(state?.collapsedFolders || []),
+    ...collapsedFromRefs,
+  ].filter((id, index, arr) => folderIds.has(id) && arr.indexOf(id) === index);
 
   const preferredActiveId = state?.activeNoteId;
   if (preferredActiveId && noteIds.has(preferredActiveId)) {
@@ -3718,17 +3973,64 @@ const restoreNotesTreeUiState = (targetVaultPath?: string | null) => {
     return;
   }
 
+  const preferredActiveRef = state?.activeNoteRef || "";
+  if (preferredActiveRef) {
+    const preferredByRef = notes.value.find((note) => {
+      if (preferredActiveRef.startsWith("id:")) {
+        return note.id === preferredActiveRef.slice(3);
+      }
+
+      if (preferredActiveRef.startsWith("path:")) {
+        return (
+          (note.relativePath || note.filename || "") ===
+          preferredActiveRef.slice(5)
+        );
+      }
+
+      return (
+        (note.relativePath || note.filename || note.id) === preferredActiveRef
+      );
+    });
+
+    if (preferredByRef) {
+      activeNoteId.value = preferredByRef.id;
+      return;
+    }
+  }
+
   activeNoteId.value = notes.value[0]?.id ?? null;
 };
 
 const persistNotesTreeUiState = () => {
-  localStorage.setItem(
-    notesTreeUiStateStorageKey(),
-    JSON.stringify({
-      activeNoteId: activeNoteId.value,
-      collapsedFolders: [...new Set(collapsedFolders.value)],
-    } satisfies NotesTreeUiState),
-  );
+  const storageKey = notesTreeUiStateStorageKey();
+  const active =
+    notes.value.find((note) => note.id === activeNoteId.value) || null;
+  const activeNoteRef = active
+    ? vaultPath.value
+      ? `path:${active.relativePath || active.filename || active.id}`
+      : `id:${active.id}`
+    : null;
+
+  const collapsedFolderRefs = collapsedFolders.value
+    .map((folderId) => {
+      const pathRef = folderReferenceById.value.get(folderId);
+      return pathRef ? `path:${pathRef}` : `id:${folderId}`;
+    })
+    .filter(Boolean);
+
+  const payload = {
+    activeNoteId: activeNoteId.value,
+    activeNoteRef,
+    collapsedFolders: [...new Set(collapsedFolders.value)],
+    collapsedFolderRefs,
+  } satisfies NotesTreeUiState;
+
+  localStorage.setItem(storageKey, JSON.stringify(payload));
+  notesTreeStateStore.value[storageKey] = payload;
+
+  if (isElectron()) {
+    void window.electronAPI!.setNotesTreeState(storageKey, payload);
+  }
 };
 
 const normalizeWikiTitle = (value: string) => value.trim().toLowerCase();
@@ -4184,6 +4486,11 @@ const toggleFolder = (folderId: string) => {
   collapsedFolders.value = [...collapsedFolders.value, folderId];
 };
 
+const onFolderClick = (folderId: string) => {
+  selectedTreeItem.value = { type: "folder", id: folderId };
+  toggleFolder(folderId);
+};
+
 const requestDeleteFolder = (folderId: string) => {
   pendingDeleteFolderId.value = folderId;
   isDeleteFolderModalOpen.value = true;
@@ -4321,6 +4628,20 @@ const folderCoverStyle = (folder: Folder): Record<string, string> => {
   };
 };
 
+const treeRowGuideStyle = (depth: number): Record<string, string> => {
+  if (depth <= 0) return {};
+
+  const linePositions = Array.from({ length: depth }, (_, level) => {
+    const offsetRem = TREE_CHEVRON_CENTER_REM + level * TREE_LEVEL_STEP_REM;
+    return `linear-gradient(to bottom, color-mix(in oklab, var(--ui-primary) 30%, transparent), color-mix(in oklab, var(--ui-primary) 30%, transparent)) ${offsetRem}rem 0 / 1px 100% no-repeat`;
+  });
+
+  return {
+    width: `${TREE_CHEVRON_CENTER_REM + depth * TREE_LEVEL_STEP_REM}rem`,
+    background: linePositions.join(","),
+  };
+};
+
 const openLibraryNote = (noteId: string) => {
   const note = notes.value.find((item) => item.id === noteId);
   const previewEditor = libraryPreviewEditor.value;
@@ -4344,14 +4665,6 @@ const deleteActiveNote = async () => {
   }
 
   notes.value = notes.value.filter((n) => n.id !== note.id);
-
-  if (!notes.value.length) {
-    const fallback = createEmptyNote();
-    notes.value = [fallback];
-    activeNoteId.value = fallback.id;
-    return;
-  }
-
   activeNoteId.value = notes.value[0]?.id ?? null;
 };
 
@@ -4371,6 +4684,7 @@ const editor = useEditor({
   content: createEmptyDoc(),
   autofocus: true,
   extensions: [
+    NoteTitleBarrier,
     NoteImage,
     NotePdf,
     NoteFile,
@@ -4393,13 +4707,42 @@ const editor = useEditor({
   ],
   editorProps: {
     handleDOMEvents: {
+      dragover: (_view, event) => {
+        const dragEvent = event as DragEvent;
+        const transfer = dragEvent.dataTransfer;
+        if (!transfer) return false;
+
+        const hasFiles = transfer.files?.length > 0;
+        const hasFileUri = !!transfer.getData("text/uri-list").trim();
+        if (!hasFiles && !hasFileUri) return false;
+
+        dragEvent.preventDefault();
+        transfer.dropEffect = "copy";
+        return true;
+      },
       drop: (_view, event) => {
         const dragEvent = event as DragEvent;
         const files = dragEvent.dataTransfer?.files;
-        if (!files?.length) return false;
+        const droppedPaths = extractDroppedFilePaths(dragEvent);
+        if (!files?.length && !droppedPaths.length) return false;
+
+        const dropPos = editor.value?.view.posAtCoords({
+          left: dragEvent.clientX,
+          top: dragEvent.clientY,
+        })?.pos;
+
+        if (typeof dropPos === "number") {
+          editor.value?.chain().focus().setTextSelection(dropPos).run();
+        }
 
         dragEvent.preventDefault();
-        void handleFilesUpload(Array.from(files));
+
+        if (files?.length) {
+          void handleFilesUpload(Array.from(files));
+          return true;
+        }
+
+        void handleFilesFromPaths(droppedPaths);
         return true;
       },
     },
@@ -4410,6 +4753,17 @@ const editor = useEditor({
       if (!filePath || !isElectron()) return false;
 
       event.preventDefault();
+
+      if (
+        filePath.startsWith("blob:") ||
+        filePath.startsWith("data:") ||
+        filePath.startsWith("http://") ||
+        filePath.startsWith("https://")
+      ) {
+        window.open(filePath, "_blank", "noopener,noreferrer");
+        return true;
+      }
+
       void window.electronAPI!.openFilePath(filePath);
       return true;
     },
@@ -4420,7 +4774,15 @@ const editor = useEditor({
   },
   onUpdate: ({ editor }) => {
     if (!activeNote.value || isApplyingContent.value) return;
-    activeNote.value.content = editor.getJSON();
+
+    const normalized = ensureTitleAndBodyStructure(editor.getJSON());
+    if (normalized.changed) {
+      isApplyingContent.value = true;
+      editor.commands.setContent(normalized.doc, { emitUpdate: false });
+      isApplyingContent.value = false;
+    }
+
+    activeNote.value.content = normalized.doc;
     touchActiveNote();
 
     // Debounced vault save
@@ -4481,13 +4843,19 @@ watch(
   activeNote,
   (note) => {
     if (!note || !editor.value) return;
+
+    const normalized = ensureTitleAndBodyStructure(note.content);
+    if (normalized.changed) {
+      note.content = normalized.doc;
+    }
+
     isApplyingContent.value = true;
-    editor.value.commands.setContent(note.content, { emitUpdate: false });
+    editor.value.commands.setContent(normalized.doc, { emitUpdate: false });
     isApplyingContent.value = false;
 
     noteUndoBaselineById.value = {
       ...noteUndoBaselineById.value,
-      [note.id]: JSON.stringify(note.content),
+      [note.id]: JSON.stringify(normalized.doc),
     };
   },
   { immediate: true },
@@ -4628,6 +4996,8 @@ const closeTextContextMenu = () => {
 
 const closeNotesContextMenu = () => {
   isNotesContextMenuOpen.value = false;
+  notesContextTargetType.value = null;
+  notesContextTargetId.value = null;
 };
 
 const updateTextContextMenuPosition = (x: number, y: number) => {
@@ -4685,6 +5055,21 @@ const onEditorContextMenu = (event: MouseEvent) => {
 
 const onNotesListContextMenu = (event: MouseEvent) => {
   event.preventDefault();
+
+  const target = event.target as HTMLElement | null;
+  const noteHost = target?.closest<HTMLElement>("[data-context-note-id]");
+  const folderHost = target?.closest<HTMLElement>("[data-context-folder-id]");
+
+  if (noteHost?.dataset.contextNoteId) {
+    notesContextTargetType.value = "note";
+    notesContextTargetId.value = noteHost.dataset.contextNoteId;
+  } else if (folderHost?.dataset.contextFolderId) {
+    notesContextTargetType.value = "folder";
+    notesContextTargetId.value = folderHost.dataset.contextFolderId;
+  } else {
+    notesContextTargetType.value = null;
+    notesContextTargetId.value = null;
+  }
 
   closeTextContextMenu();
   updateNotesContextMenuPosition(event.clientX, event.clientY);
@@ -4829,7 +5214,59 @@ const basenameFromPath = (filePath: string) => {
   return parts[parts.length - 1] || "Файл";
 };
 
+const decodeFileUriToPath = (value: string): string | null => {
+  const raw = value.trim();
+  if (!raw) return null;
+
+  try {
+    const decoded = decodeURI(raw);
+
+    if (decoded.startsWith("file://")) {
+      const url = new URL(decoded);
+      return decodeURIComponent(url.pathname || "");
+    }
+
+    if (decoded.startsWith("/")) {
+      return decoded;
+    }
+  } catch {
+    // ignore invalid uri/path
+  }
+
+  return null;
+};
+
+const extractDroppedFilePaths = (event: DragEvent): string[] => {
+  const transfer = event.dataTransfer;
+  if (!transfer) return [];
+
+  const fromUriList = transfer
+    .getData("text/uri-list")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"))
+    .map(decodeFileUriToPath)
+    .filter((path): path is string => !!path);
+
+  const fromPlainText = transfer
+    .getData("text/plain")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map(decodeFileUriToPath)
+    .filter((path): path is string => !!path);
+
+  return [...new Set([...fromUriList, ...fromPlainText])];
+};
+
 const mimeByExtension: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+  bmp: "image/bmp",
+  svg: "image/svg+xml",
   xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   xls: "application/vnd.ms-excel",
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -4843,6 +5280,22 @@ const mimeFromFileName = (fileName: string) => {
   const ext = fileName.split(".").pop()?.toLowerCase() || "";
   return mimeByExtension[ext] || "application/octet-stream";
 };
+
+const isImageFile = (fileName: string, mime?: string) => {
+  if (mime?.startsWith("image/")) return true;
+
+  const ext = fileName.split(".").pop()?.toLowerCase() || "";
+  return ["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"].includes(ext);
+};
+
+const readFileAsDataUrl = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () =>
+      reject(reader.error || new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
 
 const insertLinkedFile = async (
   filePath: string,
@@ -4871,24 +5324,100 @@ const insertLinkedFile = async (
     .run();
 };
 
+const insertImageFile = async (filePath: string, fileName?: string) => {
+  if (!editor.value) return;
+
+  const normalizedPath = filePath.trim();
+  if (!normalizedPath) return;
+
+  const resolvedName = fileName || basenameFromPath(normalizedPath);
+
+  editor.value
+    .chain()
+    .focus()
+    .insertContent({
+      type: "noteImage",
+      attrs: {
+        src: toFileUrl(normalizedPath),
+        alt: resolvedName,
+        title: resolvedName,
+      },
+    })
+    .run();
+};
+
+const insertImageDataUrl = async (src: string, fileName?: string) => {
+  if (!editor.value) return;
+  if (!src.trim()) return;
+
+  const resolvedName = fileName || "Изображение";
+
+  editor.value
+    .chain()
+    .focus()
+    .insertContent({
+      type: "noteImage",
+      attrs: {
+        src,
+        alt: resolvedName,
+        title: resolvedName,
+      },
+    })
+    .run();
+};
+
+const insertAttachmentFromPath = async (
+  filePath: string,
+  fileName?: string,
+  mime?: string,
+) => {
+  const normalizedPath = filePath.trim();
+  if (!normalizedPath) return;
+
+  const resolvedName = fileName || basenameFromPath(normalizedPath);
+  const resolvedMime = mime || mimeFromFileName(resolvedName);
+
+  if (isImageFile(resolvedName, resolvedMime)) {
+    await insertImageFile(normalizedPath, resolvedName);
+    return;
+  }
+
+  await insertLinkedFile(normalizedPath, resolvedName, resolvedMime);
+};
+
 const handleFilesUpload = async (files: File[]) => {
   for (const file of files) {
     const filePath = String(
       (file as File & { path?: string }).path || "",
     ).trim();
-    if (!filePath) continue;
+    const fileName = file.name || basenameFromPath(filePath || "Файл");
+    const fileMime = file.type || mimeFromFileName(fileName);
 
-    await insertLinkedFile(
-      filePath,
-      file.name || basenameFromPath(filePath),
-      file.type || undefined,
-    );
+    if (filePath) {
+      await insertAttachmentFromPath(filePath, fileName, fileMime);
+      continue;
+    }
+
+    if (isImageFile(fileName, fileMime)) {
+      try {
+        const dataUrl = await readFileAsDataUrl(file);
+        if (dataUrl) {
+          await insertImageDataUrl(dataUrl, fileName);
+        }
+      } catch {
+        // no-op
+      }
+      continue;
+    }
+
+    const blobUrl = URL.createObjectURL(file);
+    await insertLinkedFile(blobUrl, fileName, fileMime);
   }
 };
 
 const handleFilesFromPaths = async (filePaths: string[]) => {
   for (const filePath of filePaths) {
-    await insertLinkedFile(filePath);
+    await insertAttachmentFromPath(filePath);
   }
 };
 
@@ -4898,13 +5427,7 @@ const onFileInputChange = async (event: Event) => {
   if (!fileList?.length) return;
 
   const files = Array.from(fileList);
-  const paths = files
-    .map((file) => String((file as File & { path?: string }).path || "").trim())
-    .filter(Boolean);
-
-  if (paths.length) {
-    await handleFilesFromPaths(paths);
-  }
+  await handleFilesUpload(files);
 
   if (input) {
     input.value = "";
@@ -4944,6 +5467,11 @@ const syncSpellcheckToEditors = () => {
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
 
 onMounted(async () => {
+  if (isElectron()) {
+    notesTreeStateStore.value =
+      (await window.electronAPI!.getNotesTreeState()) || {};
+  }
+
   const isAccentColor = (value: string): value is AccentColor =>
     accentOptions.some((option) => option.value === value);
 
@@ -5123,6 +5651,7 @@ onBeforeUnmount(() => {
 
 watch(notes, persistNotes, { deep: true });
 watch([activeNoteId, collapsedFolders, vaultPath], () => {
+  if (isHydratingVaultState.value) return;
   persistNotesTreeUiState();
 });
 watch(
