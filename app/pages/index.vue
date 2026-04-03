@@ -147,16 +147,16 @@
                     v-for="note in rootFilteredNotes"
                     :key="note.id"
                     :data-context-note-id="note.id"
-                    class="group relative flex items-center gap-1 rounded px-1 transition"
-                    :class="
-                      selectedTreeItem?.type === 'note' &&
-                      selectedTreeItem.id === note.id
-                        ? 'bg-primary/8 ring-1 ring-inset ring-primary/20'
-                        : 'hover:bg-muted/15'
-                    "
+                    class="group relative my-0.5 flex items-center gap-1 px-1"
                   >
                     <button
-                      class="min-w-0 flex-1 px-1 py-1.5 pr-8 text-left"
+                      class="min-w-0 flex-1 rounded px-1 py-1 pr-8 text-left transition"
+                      :class="
+                        selectedTreeItem?.type === 'note' &&
+                        selectedTreeItem.id === note.id
+                          ? 'bg-primary/8 ring-1 ring-inset ring-primary/20'
+                          : 'hover:bg-muted/15'
+                      "
                       @click="openNote(note.id)"
                     >
                       <p
@@ -175,13 +175,7 @@
                   class="relative overflow-hidden"
                 >
                   <div
-                    class="group relative z-10 flex items-center rounded px-1 transition"
-                    :class="
-                      selectedTreeItem?.type === 'folder' &&
-                      selectedTreeItem.id === folderEntry.folder.id
-                        ? 'bg-primary/8 ring-1 ring-inset ring-primary/20'
-                        : 'hover:bg-muted/15'
-                    "
+                    class="group relative z-10 flex items-center px-1 py-0.5"
                   >
                     <div
                       v-if="folderEntry.depth > 0"
@@ -191,7 +185,13 @@
                     />
 
                     <button
-                      class="relative z-10 flex min-w-0 flex-1 items-center gap-1 text-left"
+                      class="relative z-10 flex min-w-0 flex-1 items-center gap-1 rounded px-1 py-1 text-left transition"
+                      :class="
+                        selectedTreeItem?.type === 'folder' &&
+                        selectedTreeItem.id === folderEntry.folder.id
+                          ? 'bg-primary/8 ring-1 ring-inset ring-primary/20'
+                          : 'hover:bg-muted/15'
+                      "
                       :style="{
                         paddingLeft: `${TREE_BASE_PADDING_REM + folderEntry.depth * TREE_LEVEL_STEP_REM}rem`,
                       }"
@@ -222,13 +222,7 @@
                       v-for="note in notesInFolder(folderEntry.folder.id)"
                       :key="note.id"
                       :data-context-note-id="note.id"
-                      class="group relative z-10 flex items-center gap-1 rounded px-1 transition"
-                      :class="
-                        selectedTreeItem?.type === 'note' &&
-                        selectedTreeItem.id === note.id
-                          ? 'bg-primary/8 ring-1 ring-inset ring-primary/20'
-                          : 'hover:bg-muted/15'
-                      "
+                      class="group relative z-10 flex items-center gap-1 px-1 py-0.5"
                     >
                       <div
                         class="pointer-events-none absolute inset-y-0 left-0 z-0"
@@ -237,7 +231,13 @@
                       />
 
                       <button
-                        class="min-w-0 flex-1 px-1 py-1.5 pr-8 text-left"
+                        class="relative z-10 min-w-0 flex-1 rounded px-1 py-1 pr-8 text-left transition"
+                        :class="
+                          selectedTreeItem?.type === 'note' &&
+                          selectedTreeItem.id === note.id
+                            ? 'bg-primary/8 ring-1 ring-inset ring-primary/20'
+                            : 'hover:bg-muted/15'
+                        "
                         :style="{
                           paddingLeft: `${TREE_BASE_PADDING_REM + (folderEntry.depth + 1) * TREE_LEVEL_STEP_REM}rem`,
                         }"
@@ -257,16 +257,16 @@
                   v-for="note in orphanFilteredNotes"
                   :key="note.id"
                   :data-context-note-id="note.id"
-                  class="group relative flex items-center gap-1 rounded px-1 transition"
-                  :class="
-                    selectedTreeItem?.type === 'note' &&
-                    selectedTreeItem.id === note.id
-                      ? 'bg-primary/8 ring-1 ring-inset ring-primary/20'
-                      : 'hover:bg-muted/15'
-                  "
+                  class="group relative my-0.5 flex items-center gap-1 px-1"
                 >
                   <button
-                    class="min-w-0 flex-1 px-1 py-1.5 pr-8 text-left"
+                    class="min-w-0 flex-1 rounded px-1 py-1 pr-8 text-left transition"
+                    :class="
+                      selectedTreeItem?.type === 'note' &&
+                      selectedTreeItem.id === note.id
+                        ? 'bg-primary/8 ring-1 ring-inset ring-primary/20'
+                        : 'hover:bg-muted/15'
+                    "
                     @click="openNote(note.id)"
                   >
                     <p
