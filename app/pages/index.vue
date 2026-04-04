@@ -29,7 +29,11 @@
     <div class="flex flex-col gap-4 lg:flex-row">
       <div class="hidden lg:block lg:w-10 lg:shrink-0 lg:self-start">
         <div class="flex flex-col items-start gap-2">
-          <UTooltip text="Заметки" :delay-duration="0">
+          <UTooltip
+            text="Заметки"
+            :delay-duration="0"
+            :content="{ side: 'right', align: 'center' }"
+          >
             <UButton
               color="neutral"
               :variant="leftPanel === 'notes' ? 'soft' : 'ghost'"
@@ -39,7 +43,11 @@
             />
           </UTooltip>
 
-          <UTooltip text="Граф" :delay-duration="0">
+          <UTooltip
+            text="Граф"
+            :delay-duration="0"
+            :content="{ side: 'right', align: 'center' }"
+          >
             <UButton
               color="neutral"
               :variant="leftPanel === 'graph' ? 'soft' : 'ghost'"
@@ -49,7 +57,11 @@
             />
           </UTooltip>
 
-          <UTooltip text="Задачи" :delay-duration="0">
+          <UTooltip
+            text="Задачи"
+            :delay-duration="0"
+            :content="{ side: 'right', align: 'center' }"
+          >
             <UButton
               color="neutral"
               :variant="leftPanel === 'tasks' ? 'soft' : 'ghost'"
@@ -59,7 +71,11 @@
             />
           </UTooltip>
 
-          <UTooltip text="Библиотека" :delay-duration="0">
+          <UTooltip
+            text="Библиотека"
+            :delay-duration="0"
+            :content="{ side: 'right', align: 'center' }"
+          >
             <UButton
               color="neutral"
               :variant="leftPanel === 'library' ? 'soft' : 'ghost'"
@@ -993,7 +1009,7 @@
       v-model:open="isSettingsModalOpen"
       :ui="{
         content:
-          'w-screen max-w-none h-[100dvh] rounded-none border-0 bg-default shadow-none sm:w-[80vw] sm:max-w-[80vw] sm:h-[80vh] sm:rounded-xl sm:border sm:border-primary/20 sm:shadow-2xl',
+          'w-screen max-w-none h-[100dvh] rounded-none border-0 bg-default shadow-none sm:h-auto sm:w-[min(980px,92vw)] sm:max-w-[92vw] sm:rounded-xl sm:border sm:border-default sm:shadow-2xl',
       }"
     >
       <template #header>
@@ -1143,8 +1159,8 @@
             </template>
 
             <template v-else-if="settingsSection === 'hotkeys'">
-              <UCard>
-                <div class="space-y-3">
+              <UCard class="min-h-[70vh]">
+                <div class="space-y-4">
                   <div class="flex items-center justify-between gap-2">
                     <p class="text-sm font-medium text-highlighted">
                       Настройка горячих клавиш
@@ -1164,6 +1180,34 @@
                     Нажмите «Назначить», затем нужную комбинацию. Если сочетание
                     уже занято, оно будет автоматически переназначено.
                   </p>
+
+                  <div
+                    v-if="capturingHotkeyAction"
+                    class="rounded-lg border border-primary/40 bg-primary/5 p-3"
+                  >
+                    <p class="text-xs text-muted">
+                      Назначение для:
+                      <span class="font-medium text-highlighted">
+                        {{ HOTKEY_LABELS[capturingHotkeyAction] }}
+                      </span>
+                    </p>
+
+                    <div class="mt-2 flex flex-wrap items-center gap-2">
+                      <span
+                        v-for="(token, index) in capturingHotkeyTokens"
+                        :key="`${capturingHotkeyAction}-${index}-${token}`"
+                        class="rounded-md border border-default bg-default px-2 py-1 text-sm font-semibold text-highlighted"
+                      >
+                        {{ token }}
+                      </span>
+                      <span
+                        v-if="!capturingHotkeyTokens.length"
+                        class="text-sm text-muted"
+                      >
+                        Нажмите комбинацию…
+                      </span>
+                    </div>
+                  </div>
 
                   <div class="space-y-2">
                     <div
@@ -1430,7 +1474,8 @@
       v-model:open="isKanbanTaskModalOpen"
       :ui="{
         content:
-          'w-screen max-w-none h-[100dvh] rounded-none border-0 bg-default shadow-none sm:w-[90vw] sm:max-w-[90vw] sm:h-[84vh] sm:rounded-xl sm:border sm:border-default sm:shadow-2xl',
+          'w-screen max-w-none h-[100dvh] rounded-none border-0 bg-default shadow-none sm:h-[88vh] sm:w-[92vw] sm:max-w-[1400px] sm:rounded-xl sm:border sm:border-default sm:shadow-2xl',
+        body: 'min-h-0 overflow-hidden',
       }"
     >
       <template #header>
@@ -1446,9 +1491,7 @@
         </div>
       </template>
       <template #body>
-        <div
-          class="h-[calc(100dvh-8.5rem)] min-h-0 grid grid-rows-[auto_minmax(0,1fr)] gap-3 sm:h-[calc(84vh-8rem)]"
-        >
+        <div class="h-full min-h-0 grid grid-rows-[auto_minmax(0,1fr)] gap-3">
           <div class="flex items-center gap-2">
             <UInput
               v-if="isKanbanTaskEditMode && activeKanbanTask"
@@ -1477,7 +1520,9 @@
             />
           </div>
 
-          <div class="min-h-0 grid gap-3 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div
+            class="min-h-0 grid gap-3 overflow-hidden lg:grid-cols-[minmax(0,1fr)_360px]"
+          >
             <UCard class="min-h-0 flex flex-col overflow-hidden">
               <template #header>
                 <div
@@ -1655,9 +1700,16 @@
           </span>
           ?
           <span v-if="pendingDeleteFolderHasNotes">
-            Заметки из неё останутся и будут перенесены в «Без папки».
+            При обычном удалении заметки будут перенесены в «Без папки».
           </span>
         </p>
+
+        <div class="mt-4">
+          <UCheckbox
+            v-model="deleteFolderWithContents"
+            label="Удалить всё содержимое папки (подпапки и заметки)"
+          />
+        </div>
       </template>
 
       <template #footer>
@@ -1935,11 +1987,20 @@ type GraphEdge = {
 
 // Electron API bridge (only available in Electron)
 interface ElectronAPI {
-  getUiSettings: () => Promise<{ theme?: string; accent?: string }>;
+  getUiSettings: () => Promise<{
+    theme?: string;
+    accent?: string;
+    hotkeys?: Record<string, string>;
+  }>;
   setUiSettings: (settings: {
     theme: string;
     accent: string;
-  }) => Promise<{ theme?: string; accent?: string }>;
+    hotkeys?: Record<string, string>;
+  }) => Promise<{
+    theme?: string;
+    accent?: string;
+    hotkeys?: Record<string, string>;
+  }>;
   getNotesTreeState: () => Promise<Record<string, unknown>>;
   setNotesTreeState: (
     key: string,
@@ -2149,11 +2210,13 @@ const settingsSection = ref<SettingsSection>("appearance");
 const isSpellcheckEnabled = ref(true);
 const hotkeys = ref<Record<HotkeyAction, string>>({ ...DEFAULT_HOTKEYS });
 const capturingHotkeyAction = ref<HotkeyAction | null>(null);
+const capturingHotkeyPreview = ref("");
 const vaultSizeBytes = ref<number | null>(null);
 const isLoadingVaultSize = ref(false);
 const isApplyingKanbanTaskDescription = ref(false);
 const isHydratingVaultState = ref(false);
 const notesTreeStateStore = ref<Record<string, unknown>>({});
+const deleteFolderWithContents = ref(false);
 
 // Vault state
 const vaultPath = ref<string | null>(null);
@@ -2241,14 +2304,38 @@ const isThemePreference = (value: string): value is ThemePreference =>
 const persistUiSettings = async () => {
   const theme = String(colorMode.preference || "system");
   const accent = accentColor.value;
+  const currentHotkeys = { ...hotkeys.value };
 
   if (isElectron()) {
-    await window.electronAPI!.setUiSettings({ theme, accent });
+    await window.electronAPI!.setUiSettings({
+      theme,
+      accent,
+      hotkeys: currentHotkeys,
+    });
     return;
   }
 
   localStorage.setItem(THEME_STORAGE_KEY, theme);
   localStorage.setItem(ACCENT_STORAGE_KEY, accent);
+  localStorage.setItem(HOTKEYS_STORAGE_KEY, JSON.stringify(currentHotkeys));
+};
+
+const normalizeHotkeysMap = (raw: unknown): Record<HotkeyAction, string> => {
+  const nextHotkeys: Record<HotkeyAction, string> = { ...DEFAULT_HOTKEYS };
+
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return nextHotkeys;
+  }
+
+  const record = raw as Partial<Record<HotkeyAction, string>>;
+
+  for (const action of HOTKEY_ACTIONS) {
+    if (typeof record[action] === "string") {
+      nextHotkeys[action] = normalizeHotkeyString(record[action] || "");
+    }
+  }
+
+  return nextHotkeys;
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -2439,12 +2526,52 @@ const assignHotkey = (action: HotkeyAction, hotkeyValue: string) => {
 
 const startHotkeyCapture = (action: HotkeyAction) => {
   capturingHotkeyAction.value = action;
+  capturingHotkeyPreview.value = hotkeys.value[action] || "";
 };
 
 const resetHotkeysToDefault = () => {
   hotkeys.value = { ...DEFAULT_HOTKEYS };
   capturingHotkeyAction.value = null;
+  capturingHotkeyPreview.value = "";
 };
+
+const hotkeyPreviewFromKeyboardEvent = (event: KeyboardEvent): string => {
+  const parts: string[] = [];
+
+  const modPressed = isMacPlatform ? event.metaKey : event.ctrlKey;
+  if (modPressed) parts.push("Mod");
+
+  if (!isMacPlatform && event.metaKey) parts.push("Meta");
+  if (isMacPlatform && event.ctrlKey) parts.push("Ctrl");
+  if (event.altKey) parts.push("Alt");
+  if (event.shiftKey) parts.push("Shift");
+
+  const key = event.key || "";
+  const isModifierOnly = ["Shift", "Control", "Alt", "Meta"].includes(key);
+  if (!isModifierOnly) {
+    const captured = hotkeyFromKeyboardEvent(event);
+    if (captured) return captured;
+  }
+
+  return parts.join("+");
+};
+
+const formatHotkeyToken = (token: string): string => {
+  if (token === "Mod") return isMacPlatform ? "⌘" : "Ctrl";
+  if (token === "Alt") return isMacPlatform ? "⌥" : "Alt";
+  if (token === "Shift") return isMacPlatform ? "⇧" : "Shift";
+  if (token === "Ctrl") return "Ctrl";
+  if (token === "Meta") return isMacPlatform ? "⌘" : "Meta";
+  return token;
+};
+
+const capturingHotkeyTokens = computed(() =>
+  (capturingHotkeyPreview.value || "")
+    .split("+")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map(formatHotkeyToken),
+);
 
 const generateId = (): string => {
   const webCrypto = globalThis.crypto;
@@ -4492,6 +4619,7 @@ const onFolderClick = (folderId: string) => {
 };
 
 const requestDeleteFolder = (folderId: string) => {
+  deleteFolderWithContents.value = false;
   pendingDeleteFolderId.value = folderId;
   isDeleteFolderModalOpen.value = true;
 };
@@ -4499,11 +4627,51 @@ const requestDeleteFolder = (folderId: string) => {
 const cancelDeleteFolder = () => {
   isDeleteFolderModalOpen.value = false;
   pendingDeleteFolderId.value = null;
+  deleteFolderWithContents.value = false;
 };
 
 const deleteFolder = (folderId: string) => {
   const targetFolder = folders.value.find((folder) => folder.id === folderId);
   if (!targetFolder) return;
+
+  if (deleteFolderWithContents.value) {
+    const descendants = new Set<string>([folderId]);
+    let hasChanges = true;
+
+    while (hasChanges) {
+      hasChanges = false;
+
+      for (const folder of folders.value) {
+        if (
+          folder.parentId &&
+          descendants.has(folder.parentId) &&
+          !descendants.has(folder.id)
+        ) {
+          descendants.add(folder.id);
+          hasChanges = true;
+        }
+      }
+    }
+
+    notes.value = notes.value.filter(
+      (note) => !note.folderId || !descendants.has(note.folderId),
+    );
+    folders.value = folders.value.filter(
+      (folder) => !descendants.has(folder.id),
+    );
+    collapsedFolders.value = collapsedFolders.value.filter(
+      (id) => !descendants.has(id),
+    );
+
+    if (
+      activeNoteId.value &&
+      !notes.value.some((note) => note.id === activeNoteId.value)
+    ) {
+      activeNoteId.value = notes.value[0]?.id ?? null;
+    }
+
+    return;
+  }
 
   const targetParentId = targetFolder.parentId;
 
@@ -5150,15 +5318,18 @@ const handleGlobalEscape = (event: KeyboardEvent) => {
 
   if (capturingHotkeyAction.value) {
     event.preventDefault();
+    capturingHotkeyPreview.value = hotkeyPreviewFromKeyboardEvent(event);
 
     if (event.key === "Escape") {
       capturingHotkeyAction.value = null;
+      capturingHotkeyPreview.value = "";
       return;
     }
 
     if (event.key === "Backspace" || event.key === "Delete") {
       assignHotkey(capturingHotkeyAction.value, "");
       capturingHotkeyAction.value = null;
+      capturingHotkeyPreview.value = "";
       return;
     }
 
@@ -5167,6 +5338,7 @@ const handleGlobalEscape = (event: KeyboardEvent) => {
 
     assignHotkey(capturingHotkeyAction.value, captured);
     capturingHotkeyAction.value = null;
+    capturingHotkeyPreview.value = "";
     return;
   }
 
@@ -5467,6 +5639,8 @@ const syncSpellcheckToEditors = () => {
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
 
 onMounted(async () => {
+  let initialUiHotkeys: unknown = null;
+
   if (isElectron()) {
     notesTreeStateStore.value =
       (await window.electronAPI!.getNotesTreeState()) || {};
@@ -5477,6 +5651,7 @@ onMounted(async () => {
 
   if (isElectron()) {
     const uiSettings = await window.electronAPI!.getUiSettings();
+    initialUiHotkeys = uiSettings?.hotkeys;
     const savedTheme =
       typeof uiSettings?.theme === "string" ? uiSettings.theme : "";
     const savedAccent =
@@ -5515,21 +5690,16 @@ onMounted(async () => {
     isSpellcheckEnabled.value = savedSpellcheck === "true";
   }
 
-  const savedHotkeysRaw = localStorage.getItem(HOTKEYS_STORAGE_KEY);
+  const savedHotkeysRaw = isElectron()
+    ? initialUiHotkeys
+    : localStorage.getItem(HOTKEYS_STORAGE_KEY);
   if (savedHotkeysRaw) {
     try {
-      const parsed = JSON.parse(savedHotkeysRaw) as Partial<
-        Record<HotkeyAction, string>
-      >;
-      const nextHotkeys: Record<HotkeyAction, string> = { ...DEFAULT_HOTKEYS };
-
-      for (const action of HOTKEY_ACTIONS) {
-        if (typeof parsed[action] === "string") {
-          nextHotkeys[action] = normalizeHotkeyString(parsed[action] || "");
-        }
-      }
-
-      hotkeys.value = nextHotkeys;
+      const parsed =
+        typeof savedHotkeysRaw === "string"
+          ? (JSON.parse(savedHotkeysRaw) as unknown)
+          : savedHotkeysRaw;
+      hotkeys.value = normalizeHotkeysMap(parsed);
     } catch {
       hotkeys.value = { ...DEFAULT_HOTKEYS };
     }
@@ -5708,6 +5878,7 @@ watch(
   hotkeys,
   (value) => {
     localStorage.setItem(HOTKEYS_STORAGE_KEY, JSON.stringify(value));
+    void persistUiSettings();
   },
   { deep: true },
 );
@@ -5715,6 +5886,7 @@ watch(
 watch(isSettingsModalOpen, (open) => {
   if (open) return;
   capturingHotkeyAction.value = null;
+  capturingHotkeyPreview.value = "";
 });
 
 watch(

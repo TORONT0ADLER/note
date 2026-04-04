@@ -17,6 +17,7 @@ const NOTES_TREE_STATE_FILE_NAME = "notes-tree-ui-state.json";
 let uiSettings = {
   theme: "dark",
   accent: "blue",
+  hotkeys: {},
 };
 
 const MARKDOWN_EXTENSIONS = new Set([".md", ".markdown"]);
@@ -173,9 +174,15 @@ const loadUiSettings = () => {
     uiSettings = {
       theme: typeof parsed?.theme === "string" ? parsed.theme : "dark",
       accent: typeof parsed?.accent === "string" ? parsed.accent : "blue",
+      hotkeys:
+        parsed?.hotkeys &&
+        typeof parsed.hotkeys === "object" &&
+        !Array.isArray(parsed.hotkeys)
+          ? parsed.hotkeys
+          : {},
     };
   } catch {
-    uiSettings = { theme: "dark", accent: "blue" };
+    uiSettings = { theme: "dark", accent: "blue", hotkeys: {} };
   }
 };
 
@@ -295,9 +302,17 @@ ipcMain.handle("get-vault-path", () => vaultPath);
 ipcMain.handle("get-ui-settings", () => uiSettings);
 
 ipcMain.handle("set-ui-settings", (_event, settings) => {
+  const nextHotkeys =
+    settings?.hotkeys &&
+    typeof settings.hotkeys === "object" &&
+    !Array.isArray(settings.hotkeys)
+      ? settings.hotkeys
+      : uiSettings.hotkeys || {};
+
   const nextSettings = {
     theme: typeof settings?.theme === "string" ? settings.theme : "dark",
     accent: typeof settings?.accent === "string" ? settings.accent : "blue",
+    hotkeys: nextHotkeys,
   };
 
   uiSettings = nextSettings;

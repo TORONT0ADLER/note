@@ -2,6 +2,7 @@ export type JSONContent = {
   type?: string;
   text?: string;
   attrs?: Record<string, unknown>;
+  marks?: { type: string; attrs?: Record<string, unknown> }[];
   content?: JSONContent[];
 };
 
@@ -16,6 +17,27 @@ export type ParsedWikiLink = {
   targetTitle: string;
   heading: string | null;
   alias: string | null;
+};
+
+const EMBEDDED_DOC_PREFIX = "<!-- NOTEFORGE_DOC:";
+const EMBEDDED_DOC_SUFFIX = " -->";
+const EMBEDDED_DOC_REGEX = /<!--\s*NOTEFORGE_DOC:([A-Za-z0-9+/=]+)\s*-->/;
+
+const encodeEmbeddedDocPayload = (doc: JSONContent): string => {
+  const json = JSON.stringify(doc);
+  return btoa(unescape(encodeURIComponent(json)));
+};
+
+const decodeEmbeddedDocPayload = (payload: string): JSONContent | null => {
+  try {
+    const decoded = decodeURIComponent(escape(atob(payload)));
+    const parsed = JSON.parse(decoded) as JSONContent;
+    if (!parsed || typeof parsed !== "object") return null;
+    if (parsed.type !== "doc") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
 };
 
 const WIKI_LINK_REGEX = /\[\[([^\]\n]+)\]\]/g;
@@ -185,7 +207,14 @@ export const docToMarkdown = (node: JSONContent, listDepth = 0): string => {
 
   switch (node.type) {
     case "doc":
-      return children.trimEnd() + "\n";
+      if (listDepth > 0) {
+        return children.trimEnd() + "\n";
+      }
+
+      return (
+        `${children.trimEnd()}\n` +
+        `${EMBEDDED_DOC_PREFIX}${encodeEmbeddedDocPayload(node)}${EMBEDDED_DOC_SUFFIX}\n`
+      );
 
     case "heading": {
       const level = (node.attrs?.level as number) || 1;
@@ -277,12 +306,122 @@ export const docToMarkdown = (node: JSONContent, listDepth = 0): string => {
 };
 
 export const markdownToDoc = (md: string): JSONContent => {
-  const lines = md.replace(/\r\n/g, "\n").split("\n");
+  const embeddedMatch = md.match(EMBEDDED_DOC_REGEX);
+  if (embeddedMatch?.[1]) {
+    const embeddedDoc = decodeEmbeddedDocPayload(embeddedMatch[1]);
+    if (embeddedDoc) {
+      return embeddedDoc;
+    }
+  }
+
+  const cleanMarkdown = md.replace(EMBEDDED_DOC_REGEX, "").trimEnd();
+  const lines = cleanMarkdown.replace(/\r\n/g, "\n").split("\n");
   const content: JSONContent[] = [];
   let i = 0;
 
   const imageRegex = /^!\[(.*)\]\((.+)\)$/;
   const fileRegex = /^\[📎\s*(.+?)\]\((.+)\)$/;
+
+  const parseInlineMarkdown = (
+    value: string,
+    marks: { type: string; attrs?: Record<string, unknown> }[] = [],
+  ): JSONContent[] => {
+    const nodes: JSONContent[] = [];
+    let cursor = 0;
+
+    const pushText = (
+      text: string,
+      activeMarks: { type: string; attrs?: Record<string, unknown> }[],
+    ) => {
+      if (!text) return;
+      nodes.push({
+        type: "text",
+        text,
+        marks: activeMarks.length ? [...activeMarks] : undefined,
+      });
+    };
+
+    while (cursor < value.length) {
+      const rest = value.slice(cursor);
+
+      if (rest.startsWith("<u>")) {
+        const end = value.indexOf("</u>", cursor + 3);
+        if (end > cursor) {
+          const inner = value.slice(cursor + 3, end);
+          nodes.push(
+            ...parseInlineMarkdown(inner, [...marks, { type: "underline" }]),
+          );
+          cursor = end + 4;
+          continue;
+        }
+      }
+
+      if (rest.startsWith("**")) {
+        const end = value.indexOf("**", cursor + 2);
+        if (end > cursor + 1) {
+          const inner = value.slice(cursor + 2, end);
+          nodes.push(
+            ...parseInlineMarkdown(inner, [...marks, { type: "bold" }]),
+          );
+          cursor = end + 2;
+          continue;
+        }
+      }
+
+      if (rest.startsWith("*")) {
+        const end = value.indexOf("*", cursor + 1);
+        if (end > cursor) {
+          const inner = value.slice(cursor + 1, end);
+          nodes.push(
+            ...parseInlineMarkdown(inner, [...marks, { type: "italic" }]),
+          );
+          cursor = end + 1;
+          continue;
+        }
+      }
+
+      if (rest.startsWith("`")) {
+        const end = value.indexOf("`", cursor + 1);
+        if (end > cursor) {
+          const inner = value.slice(cursor + 1, end);
+          pushText(inner, [...marks, { type: "code" }]);
+          cursor = end + 1;
+          continue;
+        }
+      }
+
+      if (rest.startsWith("[")) {
+        const linkMatch = rest.match(/^\[([^\]]+)\]\(([^)]+)\)/);
+        if (linkMatch?.[1] && linkMatch?.[2]) {
+          nodes.push(
+            ...parseInlineMarkdown(linkMatch[1], [
+              ...marks,
+              { type: "link", attrs: { href: linkMatch[2] } },
+            ]),
+          );
+          cursor += linkMatch[0].length;
+          continue;
+        }
+      }
+
+      const tokenCandidates = [
+        value.indexOf("<u>", cursor),
+        value.indexOf("**", cursor),
+        value.indexOf("*", cursor),
+        value.indexOf("`", cursor),
+        value.indexOf("[", cursor),
+      ].filter((index) => index >= 0);
+
+      const nextToken = tokenCandidates.length
+        ? Math.min(...tokenCandidates)
+        : value.length;
+
+      pushText(value.slice(cursor, nextToken), marks);
+      cursor = nextToken;
+    }
+
+    return nodes;
+  };
 
   while (i < lines.length) {
     const line = lines[i]!;
@@ -344,16 +483,88 @@ export const markdownToDoc = (md: string): JSONContent => {
       continue;
     }
 
+    if (line.startsWith(">")) {
+      const quoteLines: string[] = [];
+      while (i < lines.length && lines[i]!.startsWith(">")) {
+        quoteLines.push(lines[i]!.replace(/^>\s?/, ""));
+        i++;
+      }
+
+      const quoteText = quoteLines.join("\n").trim();
+      content.push({
+        type: "blockquote",
+        content: [
+          {
+            type: "paragraph",
+            content: quoteText ? parseInlineMarkdown(quoteText) : undefined,
+          },
+        ],
+      });
+      continue;
+    }
+
     const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
     if (headingMatch) {
       content.push({
         type: "heading",
         attrs: { level: headingMatch[1]!.length },
-        content: headingMatch[2]
-          ? [{ type: "text", text: headingMatch[2] }]
-          : [],
+        content: headingMatch[2] ? parseInlineMarkdown(headingMatch[2]) : [],
       });
       i++;
+      continue;
+    }
+
+    const bulletMatch = line.match(/^\s*[-*+]\s+(.*)$/);
+    if (bulletMatch) {
+      const items: JSONContent[] = [];
+      while (i < lines.length) {
+        const itemMatch = lines[i]!.match(/^\s*[-*+]\s+(.*)$/);
+        if (!itemMatch) break;
+
+        const text = itemMatch[1] || "";
+        items.push({
+          type: "listItem",
+          content: [
+            {
+              type: "paragraph",
+              content: text ? parseInlineMarkdown(text) : undefined,
+            },
+          ],
+        });
+        i++;
+      }
+
+      content.push({
+        type: "bulletList",
+        content: items,
+      });
+      continue;
+    }
+
+    const orderedMatch = line.match(/^\s*\d+\.\s+(.*)$/);
+    if (orderedMatch) {
+      const items: JSONContent[] = [];
+      while (i < lines.length) {
+        const itemMatch = lines[i]!.match(/^\s*\d+\.\s+(.*)$/);
+        if (!itemMatch) break;
+
+        const text = itemMatch[1] || "";
+        items.push({
+          type: "listItem",
+          content: [
+            {
+              type: "paragraph",
+              content: text ? parseInlineMarkdown(text) : undefined,
+            },
+          ],
+        });
+        i++;
+      }
+
+      content.push({
+        type: "orderedList",
+        content: items,
+      });
       continue;
     }
 
@@ -374,9 +585,10 @@ export const markdownToDoc = (md: string): JSONContent => {
     }
 
     if (paraLines.length) {
+      const text = paraLines.join("\n");
       content.push({
         type: "paragraph",
-        content: [{ type: "text", text: paraLines.join("\n") }],
+        content: parseInlineMarkdown(text),
       });
     }
   }
